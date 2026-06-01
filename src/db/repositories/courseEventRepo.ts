@@ -107,6 +107,15 @@ export function createCourseEventRepo() {
         [sourceHash]
       );
     },
+
+    findBySourceHashAndSemester(sourceHash: string, semesterId: number): CourseEvent | undefined {
+      return queryOne<CourseEvent>(
+        `SELECT ce.* FROM course_events ce
+         JOIN courses c ON ce.course_id = c.id
+         WHERE ce.source_hash = ? AND c.semester_id = ?`,
+        [sourceHash, semesterId]
+      );
+    },
   };
 }
 

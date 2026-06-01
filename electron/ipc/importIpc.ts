@@ -17,10 +17,16 @@ import { getCourseColor } from '../../src/utils/courseColor';
  */
 function checkDuplicatesAndConflicts(
   result: ImportResult,
-  courseEventRepo: ReturnType<typeof createCourseEventRepo>
+  courseEventRepo: ReturnType<typeof createCourseEventRepo>,
+  semesterId?: number
 ): void {
   for (const item of result.courses) {
-    const existing = courseEventRepo.findBySourceHash(item.source_hash);
+    let existing;
+    if (semesterId) {
+      existing = courseEventRepo.findBySourceHashAndSemester(item.source_hash, semesterId);
+    } else {
+      existing = courseEventRepo.findBySourceHash(item.source_hash);
+    }
     if (existing) {
       // Check if manually updated
       if (existing.updated_manually) {
@@ -74,7 +80,9 @@ export function registerImportIpc(): void {
 
   ipcMain.handle('import:schoolIndex', (_event, content: string): ImportResult => {
     const result = importSchoolIndex(content);
-    checkDuplicatesAndConflicts(result, courseEventRepo);
+    // Find existing semester to check for duplicates within that semester
+    const existingSemester = semesterRepo.list().find(s => s.name === result.semester.name);
+    checkDuplicatesAndConflicts(result, courseEventRepo, existingSemester?.id);
     return result;
   });
 
