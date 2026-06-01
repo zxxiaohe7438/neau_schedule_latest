@@ -21,12 +21,27 @@
 - React (renderer)
 - TypeScript
 - Vite (bundler)
-- SQLite (better-sqlite3)
+- SQLite (sql.js) — 纯 JavaScript 实现，无需原生编译
 - CSS Grid
-- cheerio (HTML 解析)
+- cheerio (HTML 解析) — 固定 1.0.0-rc.12，见下方兼容性说明
 - xlsx (Excel 导入)
 - electron-builder (打包)
 - vitest (测试)
+
+## Dependency Compatibility Notes
+
+### cheerio 版本兼容性
+
+- **cheerio@1.2.0** 通过 undici 依赖 `node:sqlite`，而 Electron 的 Node.js 版本不支持此模块，会导致启动错误：`ERR_UNKNOWN_BUILTIN_MODULE: No such built-in module: node:sqlite`
+- **当前固定 cheerio@1.0.0-rc.12**，此版本不依赖 undici
+- **禁止升级 cheerio 到 1.2.0 或更高版本**，除非确认 undici 不再引用 node:sqlite
+
+### 数据库方案
+
+- **当前使用 sql.js** — 纯 JavaScript 实现的 SQLite，无需编译原生模块
+- Day 1 原计划使用 better-sqlite3，但因 Windows 编译问题改用 sql.js
+- **禁止重新引入 better-sqlite3、sqlite3 或其他需要原生编译的 SQLite 依赖**
+- 数据库文件保存在 `{userData}/data/schedule.db`，每次写入后自动持久化
 
 ## 命令
 
@@ -60,3 +75,10 @@ tests/             — 测试和 fixtures
 - 不使用 rg（ripgrep）。
 - 不使用 any，除非有明确理由并写注释说明。
 - 所有检查命令都必须有真实输出，不允许用 None 或空输出作为成功依据。
+
+## Dependency Compatibility Notes
+
+- Keep `cheerio` pinned to `1.0.0-rc.12`.
+- Do not upgrade `cheerio` to `1.2.0` unless Electron Node compatibility is verified.
+- Previous failure: `cheerio@1.2.0` pulled `undici`, which referenced `node:sqlite`, causing Electron startup failure.
+- Do not introduce `better-sqlite3` or `sqlite3`; current database implementation is `sql.js`.

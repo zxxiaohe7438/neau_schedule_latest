@@ -137,10 +137,41 @@ Test Files  3 passed (3)
 2. 备份恢复功能完善 — Day 5 实现
 3. 真实学校 HTML 样本 — 需要用户提供
 
+## 依赖兼容性修复
+
+### 问题描述
+
+启动应用时出现错误：
+```
+Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+```
+
+### 根因分析
+
+- `cheerio@1.2.0` 依赖 `undici@7.26.0`
+- `undici` 的 `sqlite-cache-store.js` 引用了 `node:sqlite`
+- `node:sqlite` 是 Node.js v22+ 的实验性模块，Electron v33 的 Node.js 不支持
+- Rollup 打包时将 `node:sqlite` 包含进 `dist-electron/main.js`
+
+### 解决方案
+
+1. 降级 cheerio 从 `1.2.0` 到 `1.0.0-rc.12`（不依赖 undici）
+2. 在 `vite.config.ts` 中配置 `rollupOptions.external` 排除 `node:*` 模块
+3. 在 `CLAUDE.md` 中记录依赖兼容性注意事项
+
+### 修改文件
+
+- `package.json` — cheerio 版本降级
+- `package-lock.json` — 重新生成
+- `vite.config.ts` — 添加 external 配置
+- `CLAUDE.md` — 添加 Dependency Compatibility Notes
+- `.gitignore` — 添加 `.claude/settings.local.json`
+
 ## 当前风险
 
 1. **HTML 解析器**：目前只支持简单表格结构，真实学校 HTML 可能需要调整
 2. **剪贴板格式**：只支持特定格式，其他格式需要扩展
+3. **cheerio 版本**：固定在 1.0.0-rc.12，不能升级
 
 ## Day 5 建议
 
