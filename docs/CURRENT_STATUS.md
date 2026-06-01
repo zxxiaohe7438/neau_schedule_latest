@@ -86,6 +86,7 @@ Day 1 原计划使用 better-sqlite3，但在 Windows 环境下遇到编译问�
 - JSON 导入（完整实现）
 - HTML 导入（基础实现）
 - 剪贴板导入（基础实现）
+- CSV/Excel 导入（完整实现）
 - 导入预览
 - 去重检测
 - 冲突处理（保留本地/覆盖/跳过）
@@ -96,13 +97,26 @@ Day 1 原计划使用 better-sqlite3，但在 Windows 环境下遇到编译问�
 - 重新导入不静默覆盖手动修改
 - source_hash 去重
 
+### 学期管理
+
+- 学期归档/取消归档
+- 历史学期查看
+- 删除学期（带确认提示）
+- 删除前提示备份
+
+### 备份恢复
+
+- JSON 备份导出（自动/手动选择位置）
+- JSON 备份恢复（恢复前自动备份）
+
 ## 测试状态
 
 - TypeScript 类型检查：✅ 通过
-- 单元测试：✅ 18 个通过
+- 单元测试：✅ 23 个通过
   - JSON 导入器：7 个
   - HTML 导入器：5 个
   - 剪贴板导入器：6 个
+  - CSV 导入器：5 个
 
 ## 文件结构
 
@@ -126,6 +140,7 @@ src/
     jsonImporter.ts         — JSON 导入
     htmlImporter.ts         — HTML 导入
     clipboardImporter.ts    — 剪贴板导入
+    xlsxImporter.ts         — CSV/Excel 导入
     normalizer.ts           — 数据规范化
   domain/                   — 类型定义
   utils/                    — 工具函数
@@ -137,8 +152,7 @@ electron/
 
 ## 下一步
 
-1. 实现 Excel/CSV 导入
-2. 完善备份恢复功能
-3. 实现学期归档和删除
-4. 配置 electron-builder 打包
-5. 全面测试和验收
+1. 配置 electron-builder 打包
+2. 创建 Windows 可运行包
+3. 全面测试和验收
+4. 写使用说明

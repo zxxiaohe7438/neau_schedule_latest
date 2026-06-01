@@ -56,6 +56,10 @@ export function createSemesterRepo() {
     archive(id: number): void {
       execute("UPDATE semesters SET is_archived = 1, updated_at = datetime('now') WHERE id = ?", [id]);
     },
+
+    unarchive(id: number): void {
+      execute("UPDATE semesters SET is_archived = 0, updated_at = datetime('now') WHERE id = ?", [id]);
+    },
   };
 }
 

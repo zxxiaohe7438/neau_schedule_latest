@@ -30,6 +30,7 @@ export interface ElectronAPI {
     update: (id: number, input: SemesterUpdateInput) => Promise<Semester>;
     delete: (id: number) => Promise<void>;
     archive: (id: number) => Promise<void>;
+    unarchive: (id: number) => Promise<void>;
   };
   // Section Time
   sectionTime: {
@@ -64,8 +65,10 @@ export interface ElectronAPI {
   };
   // Backup
   backup: {
-    exportJson: (semesterId: number) => Promise<BackupData>;
-    importJson: (data: BackupData) => Promise<void>;
+    exportJson: (semesterId: number) => Promise<string>;
+    exportTo: (semesterId: number) => Promise<string | null>;
+    autoBackup: () => Promise<string>;
+    importJson: (data?: BackupData) => Promise<{ success: boolean; message: string }>;
   };
   // Development only
   dev?: {
@@ -82,6 +85,7 @@ const api: ElectronAPI = {
     update: (id, input) => ipcRenderer.invoke('semester:update', id, input),
     delete: (id) => ipcRenderer.invoke('semester:delete', id),
     archive: (id) => ipcRenderer.invoke('semester:archive', id),
+    unarchive: (id) => ipcRenderer.invoke('semester:unarchive', id),
   },
   sectionTime: {
     listBySemester: (semesterId) =>
@@ -118,6 +122,8 @@ const api: ElectronAPI = {
   },
   backup: {
     exportJson: (semesterId) => ipcRenderer.invoke('backup:export', semesterId),
+    exportTo: (semesterId) => ipcRenderer.invoke('backup:exportTo', semesterId),
+    autoBackup: () => ipcRenderer.invoke('backup:autoBackup'),
     importJson: (data) => ipcRenderer.invoke('backup:import', data),
   },
   dev: {

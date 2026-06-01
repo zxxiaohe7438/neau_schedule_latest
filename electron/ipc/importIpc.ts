@@ -3,6 +3,7 @@ import type { ImportResult, ImportConflict } from '../../src/domain/ImportResult
 import { importJson } from '../../src/importers/jsonImporter';
 import { importHtml } from '../../src/importers/htmlImporter';
 import { importClipboard } from '../../src/importers/clipboardImporter';
+import { importXlsx } from '../../src/importers/xlsxImporter';
 import { createSemesterRepo } from '../../src/db/repositories/semesterRepo';
 import { createCourseRepo } from '../../src/db/repositories/courseRepo';
 import { createCourseEventRepo } from '../../src/db/repositories/courseEventRepo';
@@ -61,9 +62,10 @@ export function registerImportIpc(): void {
     return result;
   });
 
-  ipcMain.handle('import:xlsx', (_event, _buffer: ArrayBuffer): ImportResult => {
-    // TODO: implement xlsxImporter
-    throw new Error('XLSX importer not yet implemented');
+  ipcMain.handle('import:xlsx', (_event, buffer: ArrayBuffer): ImportResult => {
+    const result = importXlsx(buffer);
+    checkDuplicatesAndConflicts(result, courseEventRepo);
+    return result;
   });
 
   ipcMain.handle('import:confirm', (_event, result: ImportResult): void => {

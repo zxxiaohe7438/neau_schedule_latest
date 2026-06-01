@@ -1,0 +1,6 @@
+courseName,teacher,location,weekday,startSection,endSection,startWeek,endWeek,weekPattern,note
+数据库原理与应用,张老师,成栋楼A101,1,1,2,1,16,all,
+数据结构,李老师,成栋楼B203,2,3,4,1,16,all,
+操作系统,王老师,成栋楼C305,3,1,2,1,16,odd,单周上课
+计算机网络,赵老师,成栋楼A401,4,5,6,1,18,all,
+软件工程,刘老师,成栋楼B102,5,3,4,1,16,even,双周上课

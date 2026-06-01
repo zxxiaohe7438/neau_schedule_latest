@@ -33,4 +33,8 @@ export function registerSemesterIpc(): void {
   ipcMain.handle('semester:archive', (_event, id: number) => {
     return repo.archive(id);
   });
+
+  ipcMain.handle('semester:unarchive', (_event, id: number) => {
+    return repo.unarchive(id);
+  });
 }
