@@ -12,3 +12,8 @@ Thumbs.db
 .env.local
 *.log
 .claude/settings.local.json
+
+# Exporter output and snapshots (may contain personal data)
+tools/neau-timetable-exporter/output/*.json
+tools/neau-timetable-exporter/snapshots/*.html
+tools/neau-timetable-exporter/snapshots/*.json

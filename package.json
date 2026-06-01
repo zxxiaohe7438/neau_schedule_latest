@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "exporter:from-html": "npx tsx tools/neau-timetable-exporter/cli.ts",
+    "exporter:browser": "echo \"Playwright 未安装，请先运行: npm install playwright\" ",
+    "exporter:test": "vitest run tests/exporter.test.ts"
   },
   "dependencies": {
     "cheerio": "1.0.0-rc.12",
