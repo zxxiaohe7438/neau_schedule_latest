@@ -14,7 +14,10 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
-              external: ['sql.js'],
+              external: (id) => {
+                // External sql.js and all node: built-in modules
+                return id === 'sql.js' || id.startsWith('node:');
+              },
             },
           },
         },
