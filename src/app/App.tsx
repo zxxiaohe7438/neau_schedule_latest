@@ -10,10 +10,11 @@ import { TimetableGrid } from '../components/TimetableGrid';
 import { CourseListView } from '../components/CourseListView';
 import { CourseEditor } from '../components/CourseEditor';
 import { ImportPreview } from '../components/ImportPreview';
+import { LoginPanel } from '../components/LoginPanel';
 import { Modal } from '../components/Modal';
 import { getWeekNumber } from '../utils/dateUtils';
 
-type View = 'home' | 'timetable' | 'list' | 'import' | 'edit';
+type View = 'home' | 'timetable' | 'list' | 'import' | 'edit' | 'login';
 
 export function App() {
   const [semesters, setSemesters] = useState<Semester[]>([]);
@@ -37,6 +38,14 @@ export function App() {
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [editingEvent, setEditingEvent] = useState<CourseEvent | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  // Login state
+  const [savedUsername, setSavedUsername] = useState<string>(() => {
+    return localStorage.getItem('neau_username') ?? '';
+  });
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('neau_logged_in') === 'true';
+  });
 
   const loadSemesters = useCallback(async () => {
     try {
@@ -184,6 +193,20 @@ export function App() {
     []
   );
 
+  // Login handlers
+  const handleLogin = useCallback((username: string) => {
+    localStorage.setItem('neau_username', username);
+    localStorage.setItem('neau_logged_in', 'true');
+    setSavedUsername(username);
+    setIsLoggedIn(true);
+    setView('home');
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('neau_logged_in');
+    setIsLoggedIn(false);
+  }, []);
+
   // Import handlers
   const handleImportClick = useCallback(() => {
     fileInputRef.current?.click();
@@ -223,14 +246,17 @@ export function App() {
 
       try {
         const text = await file.text();
+        console.log('Importing school index...');
         const result = await window.api.import.importSchoolIndex(text);
-        if (result.courses.length === 0) {
+        console.log('Import result:', result);
+        if (result.courses.length === 0 && (!result.unscheduled_courses || result.unscheduled_courses.length === 0)) {
           alert('未能从文件中解析出课程数据。\n\n请确保文件是从 F12 Network 中复制的 ajaxStudentSchedule/callback 响应。');
           return;
         }
         setImportResult(result);
         setView('import');
       } catch (err) {
+        console.error('Import error:', err);
         alert(err instanceof Error ? err.message : '导入失败');
       }
 
@@ -404,6 +430,18 @@ export function App() {
             <button className="btn btn-sm" onClick={handleSchoolIndexImport} title="导入从 F12 Network 复制的课表数据">
               导入课表数据
             </button>
+            {isLoggedIn ? (
+              <div className="user-info">
+                <span className="user-name">{savedUsername}</span>
+                <button className="btn btn-sm btn-secondary" onClick={handleLogout}>
+                  退出
+                </button>
+              </div>
+            ) : (
+              <button className="btn btn-sm btn-primary" onClick={() => setView('login')}>
+                连接学校系统
+              </button>
+            )}
           </div>
         )}
         {view !== 'home' && view !== 'import' && activeSemesterId && (
@@ -424,19 +462,25 @@ export function App() {
         )}
       </header>
       <main className="app-main">
-        {view === 'home' || !activeSemesterId ? (
-          <SemesterManager
-            semesters={semesters}
-            onCreated={handleSemesterCreated}
-            onDeleted={handleSemesterDeleted}
-            onSeedMockData={window.api.dev ? handleSeedMockData : undefined}
-            onClearAllData={window.api.dev ? handleClearAllData : undefined}
+        {view === 'login' ? (
+          <LoginPanel
+            savedUsername={savedUsername}
+            onLogin={handleLogin}
+            onCancel={() => setView('home')}
           />
         ) : view === 'import' && importResult ? (
           <ImportPreview
             result={importResult}
             onConfirm={handleImportConfirm}
             onCancel={handleImportCancel}
+          />
+        ) : view === 'home' || !activeSemesterId ? (
+          <SemesterManager
+            semesters={semesters}
+            onCreated={handleSemesterCreated}
+            onDeleted={handleSemesterDeleted}
+            onSeedMockData={window.api.dev ? handleSeedMockData : undefined}
+            onClearAllData={window.api.dev ? handleClearAllData : undefined}
           />
         ) : view === 'timetable' && activeSemester ? (
           <TimetableGrid
