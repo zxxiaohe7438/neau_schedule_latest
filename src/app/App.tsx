@@ -26,6 +26,7 @@ export function App() {
   const [events, setEvents] = useState<CourseEvent[]>([]);
   const [sectionTimes, setSectionTimes] = useState<SectionTime[]>([]);
   const [currentWeek, setCurrentWeek] = useState(1);
+  const [unscheduledCourses, setUnscheduledCourses] = useState<Course[]>([]);
 
   // Import state
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -64,6 +65,7 @@ export function App() {
       setCourses([]);
       setEvents([]);
       setSectionTimes([]);
+      setUnscheduledCourses([]);
       return;
     }
 
@@ -77,6 +79,11 @@ export function App() {
         setCourses(courseList);
         setEvents(eventList);
         setSectionTimes(timeList);
+
+        // Find unscheduled courses (courses without events)
+        const courseIdsWithEvents = new Set(eventList.map(e => e.course_id));
+        const unscheduled = courseList.filter(c => !courseIdsWithEvents.has(c.id));
+        setUnscheduledCourses(unscheduled);
 
         // Calculate current week based on today's date
         const semester = semesters.find((s) => s.id === activeSemesterId);
@@ -403,6 +410,7 @@ export function App() {
             events={events}
             sectionTimes={sectionTimes}
             currentWeek={currentWeek}
+            unscheduledCourses={unscheduledCourses}
             onWeekChange={setCurrentWeek}
             onEventDoubleClick={handleTimetableDoubleClick}
           />

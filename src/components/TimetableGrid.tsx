@@ -17,6 +17,7 @@ interface TimetableGridProps {
   events: CourseEvent[];
   sectionTimes: SectionTime[];
   currentWeek: number;
+  unscheduledCourses?: Course[];
   onWeekChange: (week: number) => void;
   onEventClick?: (event: CourseEvent, course: Course) => void;
   onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
@@ -72,6 +73,7 @@ export function TimetableGrid({
   events,
   sectionTimes,
   currentWeek,
+  unscheduledCourses = [],
   onWeekChange,
   onEventClick,
   onEventDoubleClick,
@@ -140,44 +142,66 @@ export function TimetableGrid({
         </button>
       </div>
 
-      {/* Grid */}
-      <div
-        className="timetable-grid"
-        style={{
-          gridTemplateRows: `40px repeat(${maxSection}, minmax(48px, 1fr))`,
-        }}
-      >
-        {/* Header row */}
-        <div className="timetable-header timetable-corner">节次</div>
-        {[1, 2, 3, 4, 5, 6, 7].map((weekday) => {
-          const date = getDateOfWeekday(weekMonday, weekday);
-          const isToday = isSameDay(date, today);
-          return (
-            <div
-              key={weekday}
-              className={`timetable-header ${isToday ? 'today' : ''}`}
-            >
-              <div className="weekday-label">{WEEKDAY_LABELS[weekday]}</div>
-              <div className="date-label">{formatShortDate(date)}</div>
-            </div>
-          );
-        })}
+      {/* Content area */}
+      <div className="timetable-content">
+        {/* Grid */}
+        <div
+          className="timetable-grid"
+          style={{
+            gridTemplateRows: `48px repeat(${maxSection}, minmax(56px, 1fr))`,
+          }}
+        >
+          {/* Header row */}
+          <div className="timetable-header timetable-corner">节次</div>
+          {[1, 2, 3, 4, 5, 6, 7].map((weekday) => {
+            const date = getDateOfWeekday(weekMonday, weekday);
+            const isToday = isSameDay(date, today);
+            return (
+              <div
+                key={weekday}
+                className={`timetable-header ${isToday ? 'today' : ''}`}
+              >
+                <div className="weekday-label">{WEEKDAY_LABELS[weekday]}</div>
+                <div className="date-label">{formatShortDate(date)}</div>
+              </div>
+            );
+          })}
 
-        {/* Section rows */}
-        {sections.map((sectionNo) => {
-          const time = timeMap.get(sectionNo);
-          return (
-            <RowCells
-              key={sectionNo}
-              sectionNo={sectionNo}
-              time={time}
-              grid={grid}
-              coveredCells={coveredCells}
-              onEventClick={onEventClick}
-              onEventDoubleClick={onEventDoubleClick}
-            />
-          );
-        })}
+          {/* Section rows */}
+          {sections.map((sectionNo) => {
+            const time = timeMap.get(sectionNo);
+            return (
+              <RowCells
+                key={sectionNo}
+                sectionNo={sectionNo}
+                time={time}
+                grid={grid}
+                coveredCells={coveredCells}
+                onEventClick={onEventClick}
+                onEventDoubleClick={onEventDoubleClick}
+              />
+            );
+          })}
+        </div>
+
+        {/* Unscheduled Courses Panel */}
+        {unscheduledCourses.length > 0 && (
+          <div className="unscheduled-panel">
+            <div className="unscheduled-header">
+              无日程课程 ({unscheduledCourses.length})
+            </div>
+            <div className="unscheduled-list">
+              {unscheduledCourses.map((course) => (
+                <div key={course.id} className="unscheduled-item">
+                  <div className="unscheduled-item-name">{course.name}</div>
+                  {course.teacher && (
+                    <div className="unscheduled-item-teacher">{course.teacher}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

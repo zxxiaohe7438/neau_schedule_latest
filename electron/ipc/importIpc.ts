@@ -147,5 +147,24 @@ export function registerImportIpc(): void {
         });
       }
     }
+
+    // Import unscheduled courses (courses without fixed schedule)
+    const { unscheduled_courses } = result;
+    if (unscheduled_courses) {
+      for (const item of unscheduled_courses) {
+        // Check if course already exists
+        const existingCourses = courseRepo.listBySemester(semester.id);
+        const existing = existingCourses.find((c) => c.name === item.course_name);
+        if (!existing) {
+          const color = getCourseColor(item.course_name);
+          courseRepo.create({
+            semester_id: semester.id,
+            name: item.course_name,
+            teacher: item.teacher,
+            color,
+          });
+        }
+      }
+    }
   });
 }

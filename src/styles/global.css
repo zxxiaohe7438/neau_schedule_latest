@@ -276,6 +276,9 @@ body {
 /* Timetable Container */
 .timetable-container {
   overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .timetable-nav {
@@ -283,7 +286,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .timetable-week-label {
@@ -293,22 +296,28 @@ body {
   text-align: center;
 }
 
+.timetable-content {
+  display: flex;
+  gap: 16px;
+}
+
 /* Timetable Grid */
 .timetable-grid {
   display: grid;
-  grid-template-columns: 72px repeat(7, 1fr);
+  grid-template-columns: 90px repeat(7, 1fr);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--color-surface);
-  min-width: 640px;
+  min-width: 700px;
+  flex: 1;
 }
 
 .timetable-header {
   background: var(--color-bg);
-  padding: 6px 4px;
+  padding: 10px 6px;
   text-align: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   border-bottom: 1px solid var(--color-border);
   border-right: 1px solid var(--color-border);
@@ -327,19 +336,20 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-text-muted);
+  font-weight: 600;
 }
 
 .weekday-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .date-label {
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0.7;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 /* Section Labels */
@@ -348,33 +358,33 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4px 2px;
+  padding: 6px 4px;
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
   border-right: 1px solid var(--color-border);
-  font-size: 12px;
-  gap: 1px;
+  font-size: 13px;
+  gap: 2px;
 }
 
 .section-number {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-text);
 }
 
 .section-time {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-text-muted);
   text-align: center;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 /* Timetable Cells */
 .timetable-cell {
   border-bottom: 1px solid var(--color-border);
   border-right: 1px solid var(--color-border);
-  padding: 4px 6px;
-  min-height: 48px;
+  padding: 8px 10px;
+  min-height: 60px;
   position: relative;
 }
 
@@ -388,28 +398,30 @@ body {
 
 .timetable-cell.has-course {
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 4px;
   transition: box-shadow 0.15s;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .timetable-cell.has-course:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   z-index: 1;
 }
 
 .course-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.3;
-  margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .course-location {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -417,7 +429,7 @@ body {
 }
 
 .course-teacher {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -425,10 +437,55 @@ body {
 }
 
 .course-week-pattern {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-danger);
   margin-top: 2px;
   font-weight: 600;
+}
+
+/* Unscheduled Courses Panel */
+.unscheduled-panel {
+  width: 280px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.unscheduled-header {
+  background: var(--color-bg);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.unscheduled-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.unscheduled-item {
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--color-primary);
+}
+
+.unscheduled-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.unscheduled-item-teacher {
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 /* Course List View */
