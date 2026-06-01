@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "school": "东北农业大学",
+  "source": "neau-student-system",
+  "semester": {
+    "name": "2025-2026-2",
+    "startDate": "2026-03-02",
+    "weeksCount": 18
+  },
+  "sectionTimes": [
+    { "section": 1, "startTime": "08:00", "endTime": "08:45" },
+    { "section": 2, "startTime": "08:55", "endTime": "09:40" },
+    { "section": 3, "startTime": "10:00", "endTime": "10:45" },
+    { "section": 4, "startTime": "10:55", "endTime": "11:40" },
+    { "section": 5, "startTime": "14:00", "endTime": "14:45" },
+    { "section": 6, "startTime": "14:55", "endTime": "15:40" },
+    { "section": 7, "startTime": "16:00", "endTime": "16:45" },
+    { "section": 8, "startTime": "16:55", "endTime": "17:40" },
+    { "section": 9, "startTime": "19:00", "endTime": "19:45" },
+    { "section": 10, "startTime": "19:55", "endTime": "20:40" },
+    { "section": 11, "startTime": "20:50", "endTime": "21:35" }
+  ],
+  "courses": [
+    {
+      "courseName": "数据库原理与应用",
+      "teacher": "张老师",
+      "location": "成栋楼A101",
+      "weekday": 1,
+      "startSection": 1,
+      "endSection": 2,
+      "startWeek": 1,
+      "endWeek": 16,
+      "weekPattern": "all",
+      "note": "",
+      "rawText": "数据库原理与应用 张老师 成栋楼A101 1-16周 周一 1-2节"
+    },
+    {
+      "courseName": "数据结构",
+      "teacher": "李老师",
+      "location": "成栋楼B203",
+      "weekday": 2,
+      "startSection": 3,
+      "endSection": 4,
+      "startWeek": 1,
+      "endWeek": 16,
+      "weekPattern": "all",
+      "note": "",
+      "rawText": "数据结构 李老师 成栋楼B203 1-16周 周二 3-4节"
+    },
+    {
+      "courseName": "操作系统",
+      "teacher": "王老师",
+      "location": "成栋楼C305",
+      "weekday": 3,
+      "startSection": 1,
+      "endSection": 2,
+      "startWeek": 1,
+      "endWeek": 16,
+      "weekPattern": "odd",
+      "note": "单周上课",
+      "rawText": "操作系统 王老师 成栋楼C305 1-16周(单) 周三 1-2节"
+    },
+    {
+      "courseName": "计算机网络",
+      "teacher": "赵老师",
+      "location": "成栋楼A401",
+      "weekday": 4,
+      "startSection": 5,
+      "endSection": 6,
+      "startWeek": 1,
+      "endWeek": 18,
+      "weekPattern": "all",
+      "note": "",
+      "rawText": "计算机网络 赵老师 成栋楼A401 1-18周 周四 5-6节"
+    },
+    {
+      "courseName": "软件工程",
+      "teacher": "刘老师",
+      "location": "成栋楼B102",
+      "weekday": 5,
+      "startSection": 3,
+      "endSection": 4,
+      "startWeek": 1,
+      "endWeek": 16,
+      "weekPattern": "even",
+      "note": "双周上课",
+      "rawText": "软件工程 刘老师 成栋楼B102 1-16周(双) 周五 3-4节"
+    }
+  ]
+}

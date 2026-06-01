@@ -1,0 +1,309 @@
+现在开始执行 Day 2：课程数据层 + 基础 UI。
+
+重要补充：Day 1 中原本使用 SQLite 原生依赖时 npm install / 编译出现问题，项目已经改成了当前 package.json 中可安装通过的数据库方案。不要擅自切回 better-sqlite3、sqlite3 或其他原生 SQLite 依赖。今天必须先识别并沿用 Day 1 当前已经采用的数据库方案。
+
+# 开始前检查
+
+请先执行并给出真实输出：
+
+1. 确认当前目录：
+
+D:\coding_relative\neau-local-schedule
+
+2. 读取并总结以下文件：
+
+* CLAUDE.md
+* CLAUDE_6_DAY_PLAN.md
+* docs/dev-log/day-1.md
+* docs/CURRENT_STATUS.md，如果存在
+* package.json
+* src/db 目录下所有文件
+* electron 目录下和数据库相关的 IPC / preload 文件
+
+3. 执行：
+
+git status
+
+4. 检查 package.json 中当前数据库依赖到底是什么。
+
+重点判断：
+
+* 如果依赖是 sql.js：沿用 sql.js，不要换库。必须实现“内存数据库 + 文件导入导出持久化”，确保重启后数据还在。
+* 如果依赖是 sequelize：沿用 sequelize，但必须确认它的 SQLite 底层依赖已经能安装和运行。不要额外引入会导致 Windows 编译失败的新原生依赖。
+* 如果项目已经实现了自定义数据库抽象层：继续沿用现有抽象层，不要重构成新方案。
+* 如果当前数据库方案能通过 npm install，就优先保持稳定，不要追求理论最优。
+
+# 今日硬性限制
+
+1. 只执行 Day 2：课程数据层 + 基础 UI。
+2. 不要做 Day 3 的 JSON 导入。
+3. 不要做 HTML 导入。
+4. 不要做手机端。
+5. 不要做自动登录。
+6. 不要访问学校系统。
+7. 不要联网，除非 npm install 是项目已有依赖恢复所必需；如果需要联网，先说明原因。
+8. 不要修改项目目录外文件。
+9. 不要保存学校账号、密码、cookie、token。
+10. 不要引入云服务、在线 CDN、遥测、远程 API。
+11. 不要使用 any。确实无法避免时，使用 unknown + 类型收窄，并写明原因。
+12. Windows 命令使用 PowerShell，不要使用 rg，不要使用 Linux 专用命令。
+
+# Day 2 目标
+
+今天只实现：
+
+1. courses 数据层
+2. course_events 数据层
+3. 默认课程颜色分配
+4. 学期切换器 SemesterSwitcher
+5. 周课表视图 TimetableGrid
+6. 长课跨节次显示
+7. 课程列表视图 CourseListView
+8. 使用 mock 数据验证 UI
+9. 确认当前数据库方案可以持久化保存课程数据
+
+# 数据库特别要求
+
+因为 Day 1 已经因为原生 SQLite 编译出问题而切换方案，所以今天必须做到：
+
+## 如果当前使用 sql.js
+
+必须实现：
+
+1. App 启动时从本地数据库文件加载。
+2. 如果数据库文件不存在，则初始化新数据库。
+3. 每次写入后保存数据库文件。
+4. 数据库文件建议放在项目 data 目录或 Electron app data 目录中。
+5. 必须验证：新增课程后，关闭应用再打开，课程仍然存在。
+
+不要只做内存数据库。只存在内存里不算完成。
+
+## 如果当前使用 Sequelize
+
+必须实现：
+
+1. 明确 storage 文件路径。
+2. 确认模型或 repository 能正常读写。
+3. 确认 npm install、typecheck、test 不再因为 SQLite native binding 失败。
+4. 不要在 Day 2 临时更换 ORM 或底层驱动。
+
+## 如果当前是其他方案
+
+先总结当前方案，再在不换库的前提下完成 courses 和 course_events CRUD。
+
+# 具体实现任务
+
+## 1. 实现 courses 数据层
+
+实现基础 CRUD：
+
+* createCourse
+* listCoursesBySemester
+* updateCourse
+* deleteCourse
+
+课程字段至少包括：
+
+* id
+* semester_id
+* name
+* teacher
+* color
+* created_at
+* updated_at
+
+要求：
+
+* 数据库访问必须通过 repository 封装。
+* React 组件不得直接访问数据库。
+* Electron main process 负责数据库操作。
+* preload 只暴露必要、安全、类型明确的 IPC 方法。
+
+## 2. 实现 course_events 数据层
+
+实现基础 CRUD：
+
+* createCourseEvent
+* listCourseEventsBySemester
+* listCourseEventsByCourse
+* updateCourseEvent
+* deleteCourseEvent
+
+课程事件字段至少包括：
+
+* id
+* course_id
+* weekday
+* start_section
+* end_section
+* start_week
+* end_week
+* week_pattern
+* location
+* note
+* source_hash
+* updated_manually
+* created_at
+* updated_at
+
+week_pattern 只能是：
+
+* all
+* odd
+* even
+
+## 3. 默认课程颜色分配
+
+实现稳定颜色分配函数。
+
+建议路径：
+
+src/utils/courseColor.ts
+
+要求：
+
+* 同一课程名每次得到相同颜色
+* 不同课程尽量颜色不同
+* 颜色不要太刺眼
+* 适合课表背景展示
+* 不要依赖网络资源
+
+## 4. 实现 SemesterSwitcher
+
+组件路径：
+
+src/components/SemesterSwitcher.tsx
+
+要求：
+
+* 显示当前学期
+* 可以切换学期
+* 可以看到归档学期
+* 先实现基础 UI
+* 数据来自已有 semester repository / IPC
+
+## 5. 实现 TimetableGrid
+
+组件路径：
+
+src/components/TimetableGrid.tsx
+
+要求：
+
+* 使用 CSS Grid
+* 左侧显示节次和上下课时间
+* 顶部显示星期一到星期日
+* 顶部显示日期，基于学期开始日期和当前周计算
+* 支持当前周切换
+* 不同课程使用不同背景色
+* 长课需要跨多个节次显示
+* 空白格保持简洁
+* 今天高亮
+* 课程块至少显示：
+
+  * 课程名
+  * 地点
+  * 教师
+  * 周次范围
+  * 备注提示
+
+## 6. 实现 CourseListView
+
+组件路径：
+
+src/components/CourseListView.tsx
+
+要求：
+
+* 列表展示所有课程事件
+* 字段包括：
+
+  * 课程名
+  * 教师
+  * 地点
+  * 星期
+  * 节次
+  * 周次
+  * 单双周
+  * 备注
+* 先实现展示和删除
+* 编辑功能可以先预留按钮，Day 3 再完善 CourseEditor
+
+## 7. mock 数据验证
+
+添加 mock 数据或开发模式种子数据，用于验证 UI。
+
+至少包含：
+
+1. 普通单节或两节课
+2. 跨 3-4 节的长课
+3. 不同星期的课程
+4. 不同课程颜色
+5. 有备注的课程
+
+要求：
+
+* mock 数据不要污染正式数据库，或者提供明确的开发模式入口
+* 可以用 fixture 或 seed 脚本
+* 文档里说明如何触发 mock 数据
+
+# 验收标准
+
+完成后必须验证并给出真实输出：
+
+1. npm install 或 npm ci，如果需要。
+2. npm run typecheck。
+3. npm test 或当前项目对应测试命令。
+4. npm run dev 能启动。
+5. 能看到学期切换器。
+6. 能看到周课表。
+7. 能看到课程列表视图。
+8. 长课能跨多个节次显示。
+9. 不同课程颜色不同。
+10. 新增课程数据能写入当前数据库方案。
+11. 应用关闭再打开后，课程数据仍然存在。
+12. 没有引入联网依赖、云服务、在线 CDN、遥测、账号系统。
+13. 没有重新引入导致 Day 1 失败的原生 SQLite 编译依赖。
+
+注意：检查错误、构建项目、运行测试、启动项目时必须给出真实返回结果。输出是 None、空输出或被截断时，必须重新执行更明确的命令确认。
+
+# 文档要求
+
+完成后更新：
+
+1. docs/dev-log/day-2.md
+2. docs/CURRENT_STATUS.md
+3. docs/architecture.md，如数据库方案或架构有变化
+4. docs/test-plan.md，如新增测试或验收方式
+5. CLAUDE.md，如需要记录“当前数据库方案”
+
+docs/dev-log/day-2.md 至少包含：
+
+* 今日完成内容
+* 当前实际数据库方案
+* 为什么不再使用原生 SQLite 依赖
+* 修改文件列表
+* 实际运行命令
+* 命令输出摘要
+* 测试结果
+* 数据是否能持久化
+* 未完成内容
+* 当前风险
+* Day 3 建议
+
+# 最后输出 Day 2 完成报告
+
+最后请输出：
+
+1. Day 2 完成了什么
+2. 当前数据库方案到底是什么
+3. 哪些文件被修改
+4. 运行了哪些命令
+5. 测试结果
+6. 当前是否能启动
+7. 课程数据是否能持久化
+8. 当前是否满足 Day 2 验收标准
+9. 存在哪些风险
+10. Day 3 应该从哪里开始
+
+现在开始执行 Day 2。

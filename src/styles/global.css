@@ -1,0 +1,538 @@
+:root {
+  --color-bg: #f5f5f5;
+  --color-surface: #ffffff;
+  --color-primary: #4a90d9;
+  --color-primary-hover: #3a7bc8;
+  --color-danger: #e06b75;
+  --color-danger-hover: #d05a64;
+  --color-text: #333333;
+  --color-text-muted: #888888;
+  --color-border: #e0e0e0;
+  --color-highlight: #fff9e6;
+  --radius: 6px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+/* App Layout */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-primary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.app-main {
+  flex: 1;
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 12px;
+}
+
+/* Semester Switcher */
+.semester-switcher {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.semester-switcher select {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  background: var(--color-surface);
+}
+
+.semester-info {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* Semester Manager */
+.semester-manager {
+  max-width: 640px;
+}
+
+.semester-manager-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.semester-form {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--color-text-muted);
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
+}
+
+.form-error {
+  color: var(--color-danger);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  cursor: pointer;
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: all 0.15s;
+}
+
+.btn:hover {
+  background: var(--color-bg);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.btn-danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.btn-danger:hover {
+  background: var(--color-danger);
+  color: white;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Semester Cards */
+.semester-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.semester-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow);
+}
+
+.semester-card.archived {
+  opacity: 0.6;
+}
+
+.semester-card h3 {
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.semester-card p {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.semester-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: var(--color-text-muted);
+  color: white;
+  margin-left: 8px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--color-text-muted);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/* View Tabs */
+.view-tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.view-tab {
+  padding: 6px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-text-muted);
+  transition: all 0.15s;
+}
+
+.view-tab:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.view-tab.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+/* Timetable Container */
+.timetable-container {
+  overflow-x: auto;
+}
+
+.timetable-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.timetable-week-label {
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 140px;
+  text-align: center;
+}
+
+/* Timetable Grid */
+.timetable-grid {
+  display: grid;
+  grid-template-columns: 72px repeat(7, 1fr);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--color-surface);
+  min-width: 640px;
+}
+
+.timetable-header {
+  background: var(--color-bg);
+  padding: 6px 4px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+}
+
+.timetable-header:last-child {
+  border-right: none;
+}
+
+.timetable-header.today {
+  background: var(--color-primary);
+  color: white;
+}
+
+.timetable-corner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.weekday-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.date-label {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 1px;
+}
+
+/* Section Labels */
+.timetable-section-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 2px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  font-size: 12px;
+  gap: 1px;
+}
+
+.section-number {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.section-time {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* Timetable Cells */
+.timetable-cell {
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  padding: 4px 6px;
+  min-height: 48px;
+  position: relative;
+}
+
+.timetable-cell:nth-child(8n) {
+  border-right: none;
+}
+
+.timetable-cell.empty {
+  background: var(--color-surface);
+}
+
+.timetable-cell.has-course {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: box-shadow 0.15s;
+  overflow: hidden;
+}
+
+.timetable-cell.has-course:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 1;
+}
+
+.course-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-location {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-teacher {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-week-pattern {
+  font-size: 10px;
+  color: var(--color-danger);
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+/* Course List View */
+.course-list-view {
+  max-width: 900px;
+}
+
+.course-list-summary {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+}
+
+.course-group {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.course-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.course-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.course-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.course-group-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.course-group-teacher {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.course-group-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.course-event-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.course-event-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.course-event-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.course-event-table tr:last-child td {
+  border-bottom: none;
+}
+
+.course-event-table tr:hover td {
+  background: var(--color-highlight);
+}
+
+.note-cell {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Placeholder */
+.semester-placeholder {
+  text-align: center;
+  padding: 48px;
+  color: var(--color-text-muted);
+}
