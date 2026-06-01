@@ -16,8 +16,15 @@ export function createCourseRepo() {
 
     create(input: CourseCreateInput): Course {
       const result = execute(
-        'INSERT INTO courses (semester_id, name, teacher, color) VALUES (?, ?, ?, ?)',
-        [input.semester_id, input.name, input.teacher ?? '', input.color ?? '#4A90D9']
+        'INSERT INTO courses (semester_id, course_number, name, teacher, color, units) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          input.semester_id,
+          input.course_number ?? '',
+          input.name,
+          input.teacher ?? '',
+          input.color ?? '#4A90D9',
+          input.units ?? 0,
+        ]
       );
       return this.getById(result.lastInsertRowid)!;
     },
@@ -26,6 +33,10 @@ export function createCourseRepo() {
       const fields: string[] = [];
       const values: unknown[] = [];
 
+      if (input.course_number !== undefined) {
+        fields.push('course_number = ?');
+        values.push(input.course_number);
+      }
       if (input.name !== undefined) {
         fields.push('name = ?');
         values.push(input.name);
@@ -37,6 +48,10 @@ export function createCourseRepo() {
       if (input.color !== undefined) {
         fields.push('color = ?');
         values.push(input.color);
+      }
+      if (input.units !== undefined) {
+        fields.push('units = ?');
+        values.push(input.units);
       }
 
       if (fields.length === 0) return this.getById(id)!;

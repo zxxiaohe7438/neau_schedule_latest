@@ -21,6 +21,7 @@ interface TimetableGridProps {
   onWeekChange: (week: number) => void;
   onEventClick?: (event: CourseEvent, course: Course) => void;
   onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
+  onCourseDoubleClick?: (course: Course) => void;
 }
 
 /** Map from course_id to Course for quick lookup */
@@ -77,6 +78,7 @@ export function TimetableGrid({
   onWeekChange,
   onEventClick,
   onEventDoubleClick,
+  onCourseDoubleClick,
 }: TimetableGridProps) {
   const courseMap = useMemo(() => buildCourseMap(courses), [courses]);
   const grid = useMemo(
@@ -192,7 +194,12 @@ export function TimetableGrid({
             </div>
             <div className="unscheduled-list">
               {unscheduledCourses.map((course) => (
-                <div key={course.id} className="unscheduled-item">
+                <div
+                  key={course.id}
+                  className="unscheduled-item"
+                  onDoubleClick={() => onCourseDoubleClick?.(course)}
+                  title="双击编辑"
+                >
                   <div className="unscheduled-item-name">{course.name}</div>
                   {course.teacher && (
                     <div className="unscheduled-item-teacher">{course.teacher}</div>
@@ -262,7 +269,6 @@ function RowCells({
             }}
             onClick={() => onEventClick?.(cell.event, cell.course)}
             onDoubleClick={() => onEventDoubleClick?.(cell.event, cell.course)}
-            title={`${cell.course.name}\n${cell.event.location}\n${cell.course.teacher}\n第${cell.event.start_week}-${cell.event.end_week}周\n双击编辑`}
           >
             <div
               className="course-name"
@@ -272,11 +278,31 @@ function RowCells({
             </div>
             <div className="course-location">{cell.event.location}</div>
             <div className="course-teacher">{cell.course.teacher}</div>
+            {cell.event.note && (
+              <div className="course-note" title={cell.event.note}>
+                📝 {cell.event.note}
+              </div>
+            )}
             {cell.event.week_pattern !== 'all' && (
               <div className="course-week-pattern">
                 {cell.event.week_pattern === 'odd' ? '单周' : '双周'}
               </div>
             )}
+            {/* Hover tooltip */}
+            <div className="course-tooltip">
+              <div className="tooltip-title">{cell.course.name}</div>
+              {cell.course.course_number && <div>课程号: {cell.course.course_number}</div>}
+              <div>教师: {cell.course.teacher}</div>
+              <div>地点: {cell.event.location}</div>
+              <div>时间: 周{weekday} 第{cell.event.start_section}-{cell.event.end_section}节</div>
+              <div>周次: 第{cell.event.start_week}-{cell.event.end_week}周</div>
+              {cell.event.week_pattern !== 'all' && (
+                <div>单双周: {cell.event.week_pattern === 'odd' ? '单周' : '双周'}</div>
+              )}
+              {cell.course.units > 0 && <div>学分: {cell.course.units}</div>}
+              {cell.event.note && <div>备注: {cell.event.note}</div>}
+              <div className="tooltip-hint">双击编辑</div>
+            </div>
           </div>
         );
       })}

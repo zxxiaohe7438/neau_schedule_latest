@@ -175,9 +175,11 @@ export function registerImportIpc(): void {
           const color = getCourseColor(item.course_name);
           courseRepo.create({
             semester_id: semester.id,
+            course_number: item.course_number,
             name: item.course_name,
             teacher: item.teacher,
             color,
+            units: item.units,
           });
         }
       }

@@ -328,6 +328,15 @@ export function App() {
     []
   );
 
+  const handleCourseDoubleClick = useCallback(
+    (course: Course) => {
+      setEditingCourse(course);
+      setEditingEvent(null);
+      setShowEditModal(true);
+    },
+    []
+  );
+
   const activeSemester = semesters.find((s) => s.id === activeSemesterId);
 
   if (loading) {
@@ -368,7 +377,7 @@ export function App() {
             onSelect={handleSelectSemester}
           />
         )}
-        {view !== 'home' && view !== 'import' && (
+        {view !== 'import' && (
           <div className="header-actions">
             <button className="btn btn-sm" onClick={handleImportClick}>
               导入 JSON
@@ -419,6 +428,7 @@ export function App() {
             unscheduledCourses={unscheduledCourses}
             onWeekChange={setCurrentWeek}
             onEventDoubleClick={handleTimetableDoubleClick}
+            onCourseDoubleClick={handleCourseDoubleClick}
           />
         ) : view === 'edit' && editingCourse ? (
           <CourseEditor

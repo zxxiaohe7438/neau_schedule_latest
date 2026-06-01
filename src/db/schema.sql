@@ -23,9 +23,11 @@ CREATE TABLE IF NOT EXISTS section_times (
 CREATE TABLE IF NOT EXISTS courses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   semester_id INTEGER NOT NULL,
+  course_number TEXT NOT NULL DEFAULT '',  -- 课程号
   name TEXT NOT NULL,
   teacher TEXT NOT NULL DEFAULT '',
   color TEXT NOT NULL DEFAULT '#4A90D9',
+  units REAL NOT NULL DEFAULT 0,  -- 学分
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE CASCADE

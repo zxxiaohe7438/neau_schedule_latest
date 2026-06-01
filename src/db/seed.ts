@@ -35,34 +35,46 @@ export const MOCK_SEMESTER: Omit<Semester, 'id' | 'created_at' | 'updated_at'> =
 /** Mock courses with various characteristics */
 export const MOCK_COURSES: Array<Omit<Course, 'id' | 'semester_id' | 'created_at' | 'updated_at'>> = [
   {
+    course_number: '19600495j',
     name: '数据库原理与应用',
     teacher: '张老师',
     color: getCourseColor('数据库原理与应用'),
+    units: 3.0,
   },
   {
+    course_number: '19600496j',
     name: '操作系统',
     teacher: '李老师',
     color: getCourseColor('操作系统'),
+    units: 3.0,
   },
   {
+    course_number: '19600497j',
     name: '计算机网络',
     teacher: '王老师',
     color: getCourseColor('计算机网络'),
+    units: 2.5,
   },
   {
+    course_number: '19600498j',
     name: '软件工程',
     teacher: '赵老师',
     color: getCourseColor('软件工程'),
+    units: 2.0,
   },
   {
+    course_number: '20600057g',
     name: '高等数学',
     teacher: '刘老师',
     color: getCourseColor('高等数学'),
+    units: 5.0,
   },
   {
+    course_number: '20700008g',
     name: '英语',
     teacher: '陈老师',
     color: getCourseColor('英语'),
+    units: 2.0,
   },
 ];
 

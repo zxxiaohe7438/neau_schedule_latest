@@ -15,7 +15,9 @@ export interface ImportResult {
 
 export interface UnscheduledCourse {
   course_name: string;
+  course_number: string;
   teacher: string;
+  units: number;
   note: string;
 }
 

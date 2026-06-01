@@ -1,24 +1,30 @@
 export interface Course {
   id: number;
   semester_id: number;
+  course_number: string;  // 课程号
   name: string;
   teacher: string;
   color: string;
+  units: number;  // 学分
   created_at: string;
   updated_at: string;
 }
 
 export interface CourseCreateInput {
   semester_id: number;
+  course_number?: string;
   name: string;
   teacher?: string;
   color?: string;
+  units?: number;
 }
 
 export interface CourseUpdateInput {
+  course_number?: string;
   name?: string;
   teacher?: string;
   color?: string;
+  units?: number;
 }
 
 /** Predefined course colors */

@@ -22,6 +22,11 @@ interface NeauCourse {
   attendClassTeacher: string;
   timeAndPlaceList: NeauTimeAndPlace[];
   skzcs?: string; // e.g. "1-16周", "1-8周"
+  id?: {
+    coureNumber?: string;  // 课程号
+    [key: string]: unknown;
+  };
+  unit?: number;  // 学分
   [key: string]: unknown;
 }
 
@@ -142,6 +147,8 @@ function parseNeauCourse(
   }
 
   const teacher = course.attendClassTeacher?.replace(/\*\s*$/, '').trim() ?? '';
+  const courseNumber = course.id?.coureNumber ?? '';
+  const units = course.unit ?? 0;
 
   // Parse each time and place entry
   const timeAndPlaceList = course.timeAndPlaceList ?? [];
@@ -151,7 +158,9 @@ function parseNeauCourse(
       items,
       unscheduled: {
         course_name: courseName,
+        course_number: courseNumber,
         teacher,
+        units,
         note: '',
       },
       errors,
