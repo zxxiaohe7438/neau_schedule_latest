@@ -9,12 +9,13 @@ interface ImportPreviewProps {
 }
 
 export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProps) {
-  const { semester, courses, errors, conflicts, total_count } = result;
+  const { semester, courses, unscheduled_courses, errors, conflicts, total_count } = result;
   const hasErrors = errors.length > 0;
   const hasConflicts = conflicts.length > 0;
   const duplicates = courses.filter((c) => c.is_duplicate);
   const conflictCourses = courses.filter((c) => c.has_conflict);
   const validCourses = courses.filter((c) => !c.is_duplicate && !c.has_conflict);
+  const hasUnscheduled = unscheduled_courses && unscheduled_courses.length > 0;
 
   // Track conflict resolutions
   const [resolutions, setResolutions] = useState<Record<string, 'skip' | 'overwrite' | 'keep_local'>>(
@@ -73,6 +74,9 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
             )}
             {hasErrors && (
               <span className="summary-item error">✗ {errors.length} 个错误</span>
+            )}
+            {hasUnscheduled && (
+              <span className="summary-item info">ℹ {unscheduled_courses.length} 门无日程课程</span>
             )}
           </div>
         </div>
@@ -153,6 +157,32 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
               <tbody>
                 {duplicates.map((course, i) => (
                   <CourseRow key={i} course={course} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Unscheduled Courses */}
+        {hasUnscheduled && (
+          <div className="preview-section">
+            <h4>无日程课程（网课/选修）</h4>
+            <p className="text-muted" style={{ marginBottom: 12 }}>
+              以下课程没有固定的上课时间和地点，通常是网课或需要自行安排的选修课。
+            </p>
+            <table className="preview-table">
+              <thead>
+                <tr>
+                  <th>课程名</th>
+                  <th>教师</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unscheduled_courses.map((course, i) => (
+                  <tr key={i}>
+                    <td>{course.course_name}</td>
+                    <td>{course.teacher || '-'}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>

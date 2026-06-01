@@ -7,9 +7,16 @@ export interface ImportResult {
     weeks_count: number;
   };
   courses: ImportCourseItem[];
+  unscheduled_courses: UnscheduledCourse[];
   errors: ImportError[];
   conflicts: ImportConflict[];
   total_count: number;
+}
+
+export interface UnscheduledCourse {
+  course_name: string;
+  teacher: string;
+  note: string;
 }
 
 export interface ImportCourseItem {

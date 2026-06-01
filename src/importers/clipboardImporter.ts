@@ -158,6 +158,7 @@ export function importClipboard(text: string, semesterName?: string): ImportResu
   return {
     semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
     courses,
+    unscheduled_courses: [],
     errors,
     conflicts: [],
     total_count: courses.length,

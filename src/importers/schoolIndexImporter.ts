@@ -3,7 +3,7 @@
  * Handles the JSON response from ajaxStudentSchedule/callback.
  */
 
-import type { ImportResult, ImportCourseItem, ImportError } from '../domain/ImportResult';
+import type { ImportResult, ImportCourseItem, ImportError, UnscheduledCourse } from '../domain/ImportResult';
 import type { WeekPattern } from '../domain/CourseEvent';
 import { computeSourceHash } from './normalizer';
 
@@ -21,6 +21,7 @@ interface NeauCourse {
   courseName: string;
   attendClassTeacher: string;
   timeAndPlaceList: NeauTimeAndPlace[];
+  skzcs?: string; // e.g. "1-16周", "1-8周"
   [key: string]: unknown;
 }
 
@@ -28,25 +29,23 @@ interface NeauResponse {
   xkxx: Array<Record<string, NeauCourse>>;
   dateList?: unknown[];
   allUnits?: number;
+  jcsjbs?: Array<{ jc: string; kssj: string; jssj: string }>;
   [key: string]: unknown;
 }
 
 /**
  * Parse classWeek binary string to determine week pattern and range.
- * classWeek is a 24-char string where each char represents a week.
- * '1' = has class, '0' = no class
  */
 function parseClassWeek(classWeek: string, weekDescription: string): {
   startWeek: number;
   endWeek: number;
   weekPattern: WeekPattern;
 } {
-  // Default values
   let startWeek = 1;
   let endWeek = 18;
   let weekPattern: WeekPattern = 'all';
 
-  // Parse weekDescription first (e.g. "1-16周", "1-16周单周", "10-11周")
+  // Parse weekDescription first
   const weekDescMatch = weekDescription.match(/(\d+)-(\d+)周(?:\s*(单|双))?/);
   if (weekDescMatch) {
     startWeek = parseInt(weekDescMatch[1], 10);
@@ -70,7 +69,6 @@ function parseClassWeek(classWeek: string, weekDescription: string): {
       startWeek = activeWeeks[0];
       endWeek = activeWeeks[activeWeeks.length - 1];
 
-      // Detect odd/even pattern
       const isAllOdd = activeWeeks.every(w => w % 2 === 1);
       const isAllEven = activeWeeks.every(w => w % 2 === 0);
 
@@ -88,24 +86,58 @@ function parseClassWeek(classWeek: string, weekDescription: string): {
 }
 
 /**
- * Parse a single course from NEAU format to ImportCourseItem.
+ * Parse skzcs string to get week range.
+ * e.g. "1-16周", "1-8周", "1-16周;13-16周"
+ */
+function parseSkzcs(skzcs: string): { startWeek: number; endWeek: number } {
+  const matches = skzcs.match(/(\d+)-(\d+)周/g);
+  if (!matches) return { startWeek: 1, endWeek: 18 };
+
+  let minWeek = Infinity;
+  let maxWeek = 0;
+  for (const match of matches) {
+    const nums = match.match(/(\d+)-(\d+)/);
+    if (nums) {
+      minWeek = Math.min(minWeek, parseInt(nums[1], 10));
+      maxWeek = Math.max(maxWeek, parseInt(nums[2], 10));
+    }
+  }
+
+  return {
+    startWeek: minWeek === Infinity ? 1 : minWeek,
+    endWeek: maxWeek === 0 ? 18 : maxWeek,
+  };
+}
+
+/**
+ * Calculate semester start date.
+ * Assume semester starts on a Monday, 2026-03-02 is the Monday of week 1 for 2025-2026-2.
+ */
+function calculateSemesterStartDate(semesterName: string): string {
+  // Default for 2025-2026-2
+  if (semesterName.includes('2025-2026-2')) {
+    return '2026-03-02';
+  }
+  // Default for 2025-2026-1
+  if (semesterName.includes('2025-2026-1')) {
+    return '2025-09-01';
+  }
+  // Default fallback
+  return '2026-03-02';
+}
+
+/**
+ * Parse a single course from NEAU format.
  */
 function parseNeauCourse(
-  courseKey: string,
   course: NeauCourse,
   semesterName: string
-): { items: ImportCourseItem[]; errors: ImportError[] } {
+): { items: ImportCourseItem[]; unscheduled?: UnscheduledCourse; errors: ImportError[] } {
   const items: ImportCourseItem[] = [];
   const errors: ImportError[] = [];
 
   const courseName = course.courseName?.trim();
   if (!courseName) {
-    errors.push({
-      index: -1,
-      field: 'courseName',
-      message: `课程名为空: ${courseKey}`,
-      raw_data: course,
-    });
     return { items, errors };
   }
 
@@ -114,15 +146,16 @@ function parseNeauCourse(
   // Parse each time and place entry
   const timeAndPlaceList = course.timeAndPlaceList ?? [];
   if (timeAndPlaceList.length === 0) {
-    // Course with no scheduled time (e.g. online courses)
-    // Still create an entry but mark it
-    errors.push({
-      index: -1,
-      field: 'timeAndPlaceList',
-      message: `课程 "${courseName}" 没有安排上课时间`,
-      raw_data: course,
-    });
-    return { items, errors };
+    // No scheduled time - return as unscheduled course
+    return {
+      items,
+      unscheduled: {
+        course_name: courseName,
+        teacher,
+        note: '',
+      },
+      errors,
+    };
   }
 
   for (const tap of timeAndPlaceList) {
@@ -175,7 +208,6 @@ function parseNeauCourse(
 
 /**
  * Import course data from NEAU API response.
- * Supports both raw JSON string and parsed object.
  */
 export function importSchoolIndex(
   input: string | NeauResponse,
@@ -183,6 +215,7 @@ export function importSchoolIndex(
 ): ImportResult {
   const allErrors: ImportError[] = [];
   const allCourses: ImportCourseItem[] = [];
+  const allUnscheduled: UnscheduledCourse[] = [];
 
   let data: NeauResponse;
   try {
@@ -201,6 +234,7 @@ export function importSchoolIndex(
     return {
       semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
       courses: [],
+      unscheduled_courses: [],
       errors: allErrors,
       conflicts: [],
       total_count: 0,
@@ -213,12 +247,10 @@ export function importSchoolIndex(
   if (Array.isArray(data.xkxx)) {
     courseData = data.xkxx;
   } else {
-    // Try to find array with course-like data
     for (const [, value] of Object.entries(data)) {
       if (Array.isArray(value) && value.length > 0) {
         const first = value[0];
         if (typeof first === 'object' && first !== null) {
-          // Check if it looks like course data
           const values = Object.values(first);
           if (values.length > 0 && typeof values[0] === 'object' && values[0] !== null) {
             const firstCourse = values[0] as Record<string, unknown>;
@@ -242,38 +274,18 @@ export function importSchoolIndex(
     return {
       semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
       courses: [],
+      unscheduled_courses: [],
       errors: allErrors,
       conflicts: [],
       total_count: 0,
     };
   }
 
-  // Extract semester info from dateList or xkxx if available
+  // Detect semester name
   let detectedSemesterName = semesterName ?? '';
 
-  // Try to extract from dateList
-  if (data.dateList && Array.isArray(data.dateList) && data.dateList.length > 0) {
-    const firstDate = data.dateList[0] as Record<string, unknown>;
-    if (firstDate && typeof firstDate === 'object') {
-      // Check selectCourseList for executiveEducationPlanNumber
-      const selectCourseList = firstDate.selectCourseList as Array<Record<string, unknown>>;
-      if (selectCourseList && selectCourseList.length > 0) {
-        const firstCourse = selectCourseList[0];
-        const id = firstCourse.id as Record<string, unknown>;
-        if (id && id.executiveEducationPlanNumber) {
-          const planNumber = id.executiveEducationPlanNumber as string;
-          // Format: "2025-2026-2-1"
-          const match = planNumber.match(/(\d{4})-(\d{4})-(\d)/);
-          if (match) {
-            detectedSemesterName = `${match[1]}-${match[2]}-${match[3]}`;
-          }
-        }
-      }
-    }
-  }
-
-  // If still no semester name, try to extract from xkxx
-  if (!detectedSemesterName && courseData.length > 0) {
+  // Try to extract from xkxx
+  if (!detectedSemesterName) {
     for (const courseMap of courseData) {
       for (const course of Object.values(courseMap)) {
         const id = (course as Record<string, unknown>).id as Record<string, unknown>;
@@ -290,22 +302,42 @@ export function importSchoolIndex(
     }
   }
 
+  // Calculate max week from all courses
+  let maxWeek = 0;
+  for (const courseMap of courseData) {
+    for (const course of Object.values(courseMap)) {
+      const skzcs = course.skzcs ?? '';
+      const { endWeek } = parseSkzcs(skzcs);
+      maxWeek = Math.max(maxWeek, endWeek);
+
+      // Also check timeAndPlaceList
+      for (const tap of course.timeAndPlaceList ?? []) {
+        const { endWeek: tapEndWeek } = parseClassWeek(tap.classWeek ?? '', tap.weekDescription ?? '');
+        maxWeek = Math.max(maxWeek, tapEndWeek);
+      }
+    }
+  }
+
   // Parse each course
   for (const courseMap of courseData) {
-    for (const [, course] of Object.entries(courseMap)) {
-      const { items, errors } = parseNeauCourse('', course, detectedSemesterName);
+    for (const course of Object.values(courseMap)) {
+      const { items, unscheduled, errors } = parseNeauCourse(course, detectedSemesterName);
       allCourses.push(...items);
       allErrors.push(...errors);
+      if (unscheduled) {
+        allUnscheduled.push(unscheduled);
+      }
     }
   }
 
   return {
     semester: {
       name: detectedSemesterName,
-      start_date: '2026-03-02', // Default, can be overridden
-      weeks_count: 18,
+      start_date: calculateSemesterStartDate(detectedSemesterName),
+      weeks_count: maxWeek > 0 ? maxWeek : 18,
     },
     courses: allCourses,
+    unscheduled_courses: allUnscheduled,
     errors: allErrors,
     conflicts: [],
     total_count: allCourses.length,

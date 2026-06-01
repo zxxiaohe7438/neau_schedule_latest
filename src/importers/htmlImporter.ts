@@ -96,6 +96,7 @@ export function importHtml(html: string, semesterName?: string): ImportResult {
       return {
         semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
         courses: [],
+        unscheduled_courses: [],
         errors,
         conflicts: [],
         total_count: 0,
@@ -191,6 +192,7 @@ export function importHtml(html: string, semesterName?: string): ImportResult {
   return {
     semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
     courses,
+    unscheduled_courses: [],
     errors,
     conflicts: [],
     total_count: courses.length,

@@ -189,6 +189,7 @@ export function importXlsx(buffer: ArrayBuffer, semesterName?: string): ImportRe
   return {
     semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
     courses,
+    unscheduled_courses: [],
     errors,
     conflicts: [],
     total_count: courses.length,
@@ -233,6 +234,7 @@ export function importCsv(csvText: string, semesterName?: string): ImportResult 
   return {
     semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
     courses,
+    unscheduled_courses: [],
     errors,
     conflicts: [],
     total_count: courses.length,

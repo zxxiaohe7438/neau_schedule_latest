@@ -184,6 +184,7 @@ export function normalizeJsonImport(input: unknown): ImportResult {
       weeks_count: weeksCount,
     },
     courses,
+    unscheduled_courses: [],
     errors,
     conflicts: [],
     total_count: courses.length,
