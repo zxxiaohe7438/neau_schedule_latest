@@ -1,0 +1,5 @@
+/*!
+ * 重写$.ajax方法 扩展success方法
+ * 在不影响现有代码的前提下添加全局判断203返回值方法，自动提示错误信息！
+ */
+(function(n){var t=n.ajax;n.ajax=function(i){var r={error:function(){},success:function(){}},u;return i.error&&(r.error=i.error),i.success&&(r.success=i.success),u=n.extend(i,{error:function(n,t,i){this.data!=null&&this.data&&(this.data instanceof FormData&&this.data.get("tokenValue")||this.data.indexOf("tokenValue")!=-1)?layer.alert("操作出错，请刷新页面重试！",{skin:"layui-layer-molv",closeBtn:0}):r.error(n,t,i)},success:function(n,t){typeof n=="object"&&n.status&&n.status=="203"?layer?layer.alert(n.msg,{icon:5,time:5e3}):alert(n.msg):r.success(n,t)}}),t(u)}})(jQuery);

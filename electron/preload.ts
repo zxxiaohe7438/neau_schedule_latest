@@ -61,6 +61,7 @@ export interface ElectronAPI {
     importHtml: (html: string) => Promise<ImportResult>;
     importClipboard: (text: string) => Promise<ImportResult>;
     importXlsx: (buffer: ArrayBuffer) => Promise<ImportResult>;
+    importSchoolIndex: (content: string) => Promise<ImportResult>;
     confirmImport: (result: ImportResult) => Promise<void>;
   };
   // Backup
@@ -118,6 +119,7 @@ const api: ElectronAPI = {
     importHtml: (html) => ipcRenderer.invoke('import:html', html),
     importClipboard: (text) => ipcRenderer.invoke('import:clipboard', text),
     importXlsx: (buffer) => ipcRenderer.invoke('import:xlsx', buffer),
+    importSchoolIndex: (content) => ipcRenderer.invoke('import:schoolIndex', content),
     confirmImport: (result) => ipcRenderer.invoke('import:confirm', result),
   },
   backup: {

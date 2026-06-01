@@ -1,0 +1,138 @@
+@font-face {
+  font-family: "iconfont"; /* Project id 643941 */
+  src: url('../fonts/iconfont.eot?t=1734144392086'); /* IE9 */
+  src: url('../fonts/iconfont.eot?t=1734144392086#iefix') format('embedded-opentype'), /* IE6-IE8 */
+  url('../fonts/iconfont.woff2?t=1734144392086') format('woff2'),
+  url('../fonts/iconfont.woff?t=1734144392086') format('woff'),
+  url('../fonts/iconfont.ttf?t=1734144392086') format('truetype'),
+  url('../svg/iconfont.svg?t=1734144392086#iconfont') format('svg');
+}
+
+.iconfont {
+  font-family: "iconfont" !important;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.urp-chengyuanbiangeng:before {
+  content: "\e6cd";
+}
+
+.urp-chengyuanbiangeng1:before {
+  content: "\e672";
+}
+
+.urp-chengyuanbiangeng2:before {
+  content: "\e68b";
+}
+
+.urp-en:before {
+  content: "\ebe0";
+}
+
+.urp-zh:before {
+  content: "\ebe2";
+}
+
+.urp-daishenpi:before {
+  content: "\e73e";
+}
+
+.urp-meiyoutu:before {
+  content: "\e886";
+}
+
+.urp-zhixuanshi:before {
+  content: "\e631";
+}
+
+.urp-zhiyuanshi:before {
+  content: "\e659";
+}
+
+.urp-cxxuankechongtu:before {
+  content: "\e809";
+}
+
+.urp-zcxuankechongtu:before {
+  content: "\e6d8";
+}
+
+.urp-handodown:before {
+  content: "\e66e";
+}
+
+.urp-handodown1:before {
+  content: "\e65c";
+}
+
+.urp-handoleft:before {
+  content: "\e722";
+}
+
+.urp-handoright:before {
+  content: "\e723";
+}
+
+.urp-hand-o-up:before {
+  content: "\e8f2";
+}
+
+.urp-plug:before {
+  content: "\e8fc";
+}
+
+.urp-ketang:before {
+  content: "\e62d";
+}
+
+.urp-mianxiu:before {
+  content: "\e628";
+}
+
+.urp-trainingPlan:before {
+  content: "\e646";
+}
+
+.urp-ai-module:before {
+  content: "\e604";
+}
+
+.urp-msnui-module:before {
+  content: "\e68c";
+}
+
+.urp-chart14:before {
+  content: "\e676";
+}
+
+.urp-chart1:before {
+  content: "\e677";
+}
+
+.urp-chart34:before {
+  content: "\e678";
+}
+
+.urp-chart38:before {
+  content: "\e679";
+}
+
+.urp-circle:before {
+  content: "\e67a";
+}
+
+.urp-chart12:before {
+  content: "\e67d";
+}
+
+.urp-chart58:before {
+  content: "\e67e";
+}
+
+.urp-chart78:before {
+  content: "\e67f";
+}
+

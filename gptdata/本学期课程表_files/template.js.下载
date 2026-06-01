@@ -1,0 +1,175 @@
+function changeInfo(){
+    $("#form-search").animate({width: '152px', right:'22px'});
+}
+
+$(function (e) {
+    var id = $(e.target).attr("id");
+    if (id == "clickdiv" || id == "clicki" || id == "search-input") {
+
+    } else {
+        $("#form-search").animate({width: '0px', right: '-20px'});
+    }
+});
+
+function SchoolCalendar() {
+    $("#view-table .modal-content").html("<iframe width='100%' style='width:100%; min-height:600px; height:100%; overflow: hidden;' src='/indexCalendar' ></iframe>");
+    $("#view-table").modal().show().on("hidden.bs.modal", function () {
+        $(this).removeData("bs.modal");
+    });
+}
+
+var sUserAgent = navigator.userAgent.toLowerCase();
+var bIsIpad = sUserAgent.match(/ipad/i) == "ipad";
+var bIsIphoneOs = sUserAgent.match(/iphone os/i) == "iphone os";
+var bIsMidp = sUserAgent.match(/midp/i) == "midp";
+var bIsUc7 = sUserAgent.match(/rv:1.2.3.4/i) == "rv:1.2.3.4";
+var bIsUc = sUserAgent.match(/ucweb/i) == "ucweb";
+var bIsAndroid = sUserAgent.match(/android/i) == "android";
+var bIsCE = sUserAgent.match(/windows ce/i) == "windows ce";
+var bIsWM = sUserAgent.match(/windows mobile/i) == "windows mobile";
+
+var isMenuToDeal = true;
+
+function rootMenuClick(obj) {
+    var html = $(obj).find("a span").html();
+    if($("#xxbm").val() == "100030" && html.trim()=="教学评估"){
+        window.open("https://dufestu.edufe.com.cn/evaluate/list","_blank");
+        return;
+    }
+    if (isMenuToDeal && !$(obj).hasClass("open")) {
+        $.each($(obj).find(".hsub"), function () {
+            if ($(this).hasClass("open")) {
+                isMenuToDeal = false;
+            }
+        });
+    } else {
+        isMenuToDeal = false;
+    }
+
+    if (isMenuToDeal) {
+        var firobj = $(obj).children("ul").children("li").first();
+        firobj.addClass("open");
+        $(firobj).children("ul").css("display", "block");
+    } else {
+        isMenuToDeal = true;
+    }
+}
+
+function stopHere(e) {
+    isMenuToDeal = false;
+}
+
+/*菜单上的搜索框*/
+$(function () {
+    var obj_lis = $("#menus").find("li > ul > li > ul > li");
+    var obj_menus = new Array();
+    for (i = 0; i < obj_lis.length; i++) {
+        obj_menus[i] = $.trim($(obj_lis[i]).find("a:first").text());
+    }
+    try {
+        $("#search-input").bs_typeahead({
+            source: obj_menus,
+            updater: function (a) {
+                for (i = 0; i < obj_lis.length; i++) {
+                    if (a == $.trim($(obj_lis[i]).find("a:first").text())) {
+                        $.cookie('selectionBar', obj_lis[i].id, {
+                            path: '/'
+                        });
+                        window.location.href = $(obj_lis[i]).find("a:first").attr("href");
+                        break;
+                    }
+                }
+                return a;
+            }
+        })
+    } catch (a) {
+    }
+});
+
+function changePassword(url) {
+    $('#view-table').modal({
+        remote: url
+    }).on("hidden.bs.modal", function () {
+        $(this).removeData("bs.modal");
+    }).css({
+        width: 'auto'
+    });
+}
+
+function ckickTopMenu(obj) {
+    if ($(obj).attr("menuid")) {
+        var menuid = $(obj).attr("menuid");
+        if ($("#" + menuid + " a:eq(0)").hasClass("dropdown-toggle")) {
+            if ($("#" + menuid).parents('.nav-list li').size() > 0) {
+                if ($("#" + menuid).parents('.nav-list li:eq(0)').hasClass("open")) {
+                    $("#" + menuid + " a").trigger("click");
+                } else {
+                    $("#" + menuid).parents('.nav-list li').find("a:eq(0)").trigger("click");
+                    if (!$("#" + menuid).hasClass("open")) {
+                        $("#" + menuid + " a").trigger("click");
+                    }
+                }
+            } else {
+                $("#" + menuid + " a:eq(0)").trigger("click");
+            }
+        } else {
+            window.location.href = $("#" + menuid + " a:eq(0)").attr("href");
+        }
+    }
+}
+
+
+function toSelect(obj) {
+    $.cookie('selectionBar', obj.id, {
+        path: '/'
+    });
+}
+
+function removeCookie() {
+    $.cookie('JSESSIONID', null);
+}
+
+function addslidersModel(id, width) {
+    var modal = '<div id="' + id + '" class="modal right fade" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" tabindex="-1">\
+            <div class="modal-dialog">\
+                <div class="modal-content">\
+                    <div class="center">\
+                        <img src="/img/icon/pageloading.gif" style="width:28px;height:28px;">\
+                    </div>\
+                </div>\
+            </div>\
+        </div>';
+    var modal = $(modal).appendTo('body');
+    $(".modal-dialog").css("width", width);
+    return modal;
+}
+function openWorkRestSchedule() {
+    var modal = addslidersModel("work_rest_schedule_modal", "60%");
+    var url = "/main/queryRestSchedule";
+    modal.modal({
+        remote: url
+    }).on('hide.bs.modal', function () {
+        modal.remove();
+    });
+}
+
+
+var sUserAgent = navigator.userAgent.toLowerCase();
+var bIsIpad = sUserAgent.match(/ipad/i) == "ipad";
+var bIsIphoneOs = sUserAgent.match(/iphone os/i) == "iphone os";
+var bIsMidp = sUserAgent.match(/midp/i) == "midp";
+var bIsUc7 = sUserAgent.match(/rv:1.2.3.4/i) == "rv:1.2.3.4";
+var bIsUc = sUserAgent.match(/ucweb/i) == "ucweb";
+var bIsAndroid = sUserAgent.match(/android/i) == "android";
+var bIsCE = sUserAgent.match(/windows ce/i) == "windows ce";
+var bIsWM = sUserAgent.match(/windows mobile/i) == "windows mobile";
+
+function toSelect(obj) {
+    $.cookie('selectionBar', obj.id, {
+        path: '/'
+    });
+}
+
+function removeCookie() {
+    $.cookie('JSESSIONID', null);
+}

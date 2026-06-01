@@ -30,6 +30,7 @@ export function App() {
   // Import state
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const schoolIndexInputRef = useRef<HTMLInputElement>(null);
 
   // Edit state
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
@@ -162,6 +163,10 @@ export function App() {
     fileInputRef.current?.click();
   }, []);
 
+  const handleSchoolIndexImport = useCallback(() => {
+    schoolIndexInputRef.current?.click();
+  }, []);
+
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -180,6 +185,32 @@ export function App() {
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
+      }
+    },
+    []
+  );
+
+  const handleSchoolIndexFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const result = await window.api.import.importSchoolIndex(text);
+        if (result.courses.length === 0) {
+          alert('未能从文件中解析出课程数据。\n\n请确保文件是从 F12 Network 中复制的 ajaxStudentSchedule/callback 响应。');
+          return;
+        }
+        setImportResult(result);
+        setView('import');
+      } catch (err) {
+        alert(err instanceof Error ? err.message : '导入失败');
+      }
+
+      // Reset file input
+      if (schoolIndexInputRef.current) {
+        schoolIndexInputRef.current.value = '';
       }
     },
     []
@@ -297,13 +328,20 @@ export function App() {
 
   return (
     <div className="app">
-      {/* Hidden file input for JSON import */}
+      {/* Hidden file inputs for import */}
       <input
         ref={fileInputRef}
         type="file"
         accept=".json"
         style={{ display: 'none' }}
         onChange={handleFileChange}
+      />
+      <input
+        ref={schoolIndexInputRef}
+        type="file"
+        accept=".json,.txt"
+        style={{ display: 'none' }}
+        onChange={handleSchoolIndexFileChange}
       />
 
       <header className="app-header">
@@ -321,6 +359,9 @@ export function App() {
           <div className="header-actions">
             <button className="btn btn-sm" onClick={handleImportClick}>
               导入 JSON
+            </button>
+            <button className="btn btn-sm" onClick={handleSchoolIndexImport} title="导入从 F12 Network 复制的课表数据">
+              导入课表数据
             </button>
           </div>
         )}

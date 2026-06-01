@@ -1,0 +1,309 @@
+.phone-message-item {
+    margin-bottom: 6px;
+    border-radius: 1em;
+    border: 1px solid #EAEDF1;
+    padding: 12px 12px 14px;
+    line-height: 18px;
+    position: relative;
+    background-color: #68adde;
+    color: #fff;
+    box-shadow: 3px 3px 3px #686dde59;
+}
+
+.phone-message-item:hover {
+    background-color: #68adde;
+}
+
+.phone-message-item small {
+    color: #fff;
+}
+
+.phone-approval-status {
+    display: none;
+}
+
+.active .phone-approval-status {
+    display: inline;
+}
+
+/*设置奇数行颜色*/
+div .phone-message-item:nth-child(odd) {
+    background-image: linear-gradient(135deg, #68adde, #4158d0);
+}
+
+/*设置偶数行颜色*/
+div .phone-message-item:nth-child(even) {
+    background-image: linear-gradient(135deg, #c850c0, #4158d0);
+}
+
+.phone-control-input, .phone-control-select {
+    width: 100%;
+    line-height: 1em;
+}
+
+.phone-header {
+    text-align: center;
+    background-color: #1d62ffcc;
+    line-height: 2.5em;
+    margin-top: 0px !important;
+    margin-bottom: 6px !important;
+    border-bottom: 0px solid #CCC;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.phone-header-left {
+    vertical-align: middle;
+    color: #FFF;
+    position: relative;
+    float: left;
+    top: 0.5em;
+    padding-left: 0.5em;
+}
+
+.phone-header-center {
+    vertical-align: middle;
+    color: #FFF;
+}
+
+.phone-header-right {
+    vertical-align: middle;
+    color: #FFF;
+    position: relative;
+    float: right;
+    top: 0.5em;
+    padding-right: 1em;
+}
+
+.phone-message-title {
+    color: #ffffff94;
+    margin-right: 0.5em;
+    font-size: 12px;
+}
+
+.phone-message-flex-1 {
+    flex: 1;
+}
+
+.phone-message-flex-2 {
+    flex: 2;
+}
+
+.phone-message-flex-3 {
+    flex: 3;
+}
+
+.phone-message-flex {
+    display: flex;
+}
+
+.phone-timeline-indicator {
+    opacity: 1;
+    border-radius: 100%;
+    display: inline-block;
+    font-size: 16px;
+    height: 36px;
+    line-height: 30px;
+    width: 36px;
+    text-align: center;
+    text-shadow: none !important;
+    padding: 0;
+    cursor: default;
+    border: 3px solid #FFF !important;
+}
+
+.phone-row-header {
+    color: #000000;
+    margin-top: 8px;
+    margin-bottom: 6px;
+    font-weight: bold;
+    font-size: 0.96em;
+    border-bottom: 1px solid #3939395e !important;
+    padding-left: 0px;
+    padding-right: 0px;
+}
+
+.phone-row-title {
+    color: #3939395e;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+    padding-right: 0px;
+}
+
+.phone-row-value {
+    margin-bottom: 6px;
+}
+
+.phone-header-font {
+    color: black;
+    font-weight: bold !important;
+}
+
+.phone-no-border {
+    border-width: 0;
+    width: 100%;
+}
+
+.phone-tab-content {
+    padding: 6px;
+    border: 0;
+    position: relative;
+}
+
+.phone-tab-content>.tab-pane {
+    display: none;
+}
+
+.phone-tab-content > .active {
+    display: block;
+}
+
+.phone-no-border > .nav {
+    display: flex;
+    justify-content: center;
+}
+
+.phone-no-border > .nav-tabs > li.active > a, .phone-no-border > .nav-tabs > li.active > a:hover, .phone-no-border > .nav-tabs > li.active > a:focus {
+    border: 0;
+    color: black;
+    font-weight: bold;
+    border-bottom: 4px solid;
+    border-image-source: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, #00bbf2 20%, rgba(255, 255, 255, 0) 99%);
+    border-image-slice: 1;
+}
+
+.control-label {
+    float: left;
+    line-height: 40px;
+    text-align: right;
+}
+
+.phone-profile-info-row {
+    width: 100% !important;
+    display: table-row;
+}
+
+.phone-profile-info-name {
+    padding: 2px 6px;
+    min-width: 95px;
+    text-align: right;
+    font-weight: 400;
+    display: table-cell;
+    vertical-align: middle;
+    margin-bottom: 15px;
+}
+
+.phone-profile-info-value {
+    padding: 8px 6px;
+    vertical-align: middle;
+    padding-left: 12px;
+    display: table-cell;
+}
+
+.phone-btn-round {
+    border-radius: 15px;
+}
+
+div.phone-profile-info-value .chosen-container-single .chosen-single {
+    padding: 0 0 0 8px !important
+}
+
+div.phone-profile-info-value .chosen-container-single .chosen-search input[type=text] {
+    width: 100% !important
+}
+
+.chosen-container, .chosen-single, div.phone-profile-info-value > input[type=text], div.phone-profile-info-value > select, div > div.input-group {
+    padding: 0;
+    width: 180px !important;
+    height: 25px !important;
+    line-height: 25px !important
+}
+
+div.phone-profile-info-value > div.chosen-container {
+    height: auto !important;
+    min-height: 25px !important
+}
+
+div.phone-profile-info-value div.input-group > input {
+    padding: 0;
+    width: 157px !important;
+    height: 25px !important;
+    line-height: 25px !important
+}
+
+div.phone-profile-info-value div.input-group > span.input-group-addon {
+    padding: 0 5px !important;
+    height: 25px !important
+}
+
+div.phone-profile-info-value a.chosen-single > span {
+    line-height: 25px !important
+}
+
+div.phone-profile-info-value > div.chosen-container-multi {
+    line-height: 21px !important
+}
+
+div.phone-profile-info-value li.search-field > input {
+    height: 21px !important;
+    line-height: 21px !important
+}
+
+div.phone-profile-info-value span.ui-spinner > input.ui-spinner-input {
+    padding: 0;
+    height: 25px !important
+}
+
+div.phone-profile-info-value span.ui-spinner > a.ui-spinner-button {
+    height: 12px !important
+}
+
+div.phone-profile-info-value .chosen-container-single .chosen-search:after {
+    top: 5px !important
+}
+
+.tit-top { 
+	overflow: hidden; 
+	box-sizing:border-box;
+	-moz-box-sizing:border-box; /* Firefox */
+	-webkit-box-sizing:border-box; /* Safari */
+	text-align: center;
+    background-color: #1d62ffcc;
+    line-height: 2.5em;
+    margin-top: 0px !important;
+    margin-bottom: 6px !important;
+    border-bottom: 0px solid #CCC;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.list-txt {
+	margin: 12px 6px 6px 6px;
+	padding: 0 6px;
+	background: #ffffff;
+	border-radius: 3px;
+	text-align: left;
+}
+	
+/* 1. 父容器设置为 Flex 布局 */
+.inline-blocks {
+    display: flex;           /* 强制子元素在一行排列 */
+    align-items: flex-start; /* 关键：图标和文字顶部对齐（左上显示） */
+    vertical-align: top;     /* 兼容旧代码，但在 Flex 下主要靠 align-items */
+}
+
+/* 2. 图标样式优化 */
+.inline-blocks .fa.inline-block {
+    flex-shrink: 0;          /* 关键：禁止图标压缩，确保宽度固定 */
+    margin-top: 2px;         /* 微调：如果图标看起来比第一行文字高，可以用这个向下调一点点 */
+}
+
+/* 3. 文字部分 */
+.inline-blocks .inline-block {
+    display: inline-block;
+    vertical-align: top;
+    word-break: break-all;   /* 关键：如果是“aaa”这种连续字符，必须加上这行才能强制换行 */
+}
+
+
