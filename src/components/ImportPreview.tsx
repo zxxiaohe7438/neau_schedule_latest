@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import type { ImportResult, ImportCourseItem, ImportError, ImportConflict } from '../domain/ImportResult';
 import { WEEKDAY_LABELS } from '../utils/dateUtils';
 
 interface ImportPreviewProps {
   result: ImportResult;
-  onConfirm: () => void;
+  onConfirm: (result: ImportResult) => void;
   onCancel: () => void;
 }
 
@@ -12,7 +13,29 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
   const hasErrors = errors.length > 0;
   const hasConflicts = conflicts.length > 0;
   const duplicates = courses.filter((c) => c.is_duplicate);
+  const conflictCourses = courses.filter((c) => c.has_conflict);
   const validCourses = courses.filter((c) => !c.is_duplicate && !c.has_conflict);
+
+  // Track conflict resolutions
+  const [resolutions, setResolutions] = useState<Record<string, 'skip' | 'overwrite' | 'keep_local'>>(
+    Object.fromEntries(conflictCourses.map((c) => [c.source_hash, 'keep_local']))
+  );
+
+  const handleResolutionChange = (sourceHash: string, resolution: 'skip' | 'overwrite' | 'keep_local') => {
+    setResolutions((prev) => ({ ...prev, [sourceHash]: resolution }));
+  };
+
+  const handleConfirm = () => {
+    // Apply resolutions to result
+    const updatedResult = { ...result };
+    updatedResult.courses = courses.map((c) => {
+      if (c.has_conflict) {
+        return { ...c, conflict_resolution: resolutions[c.source_hash] ?? 'keep_local' };
+      }
+      return c;
+    });
+    onConfirm(updatedResult);
+  };
 
   return (
     <div className="import-preview">
@@ -40,13 +63,13 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
           <div className="import-summary">
             <span className="summary-item">总计 {total_count} 条课程安排</span>
             {validCourses.length > 0 && (
-              <span className="summary-item success">✓ {validCourses.length} 条可导入</span>
+              <span className="summary-item success">✓ {validCourses.length} 条新增</span>
             )}
             {duplicates.length > 0 && (
-              <span className="summary-item warning">⚠ {duplicates.length} 条重复</span>
+              <span className="summary-item warning">⚠ {duplicates.length} 条重复（跳过）</span>
             )}
             {hasConflicts && (
-              <span className="summary-item error">✗ {conflicts.length} 条冲突</span>
+              <span className="summary-item error">⚠ {conflicts.length} 条冲突（需处理）</span>
             )}
             {hasErrors && (
               <span className="summary-item error">✗ {errors.length} 个错误</span>
@@ -69,16 +92,25 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
         {/* Conflicts */}
         {hasConflicts && (
           <div className="preview-section">
-            <h4 className="text-warning">冲突</h4>
+            <h4 className="text-warning">冲突处理</h4>
+            <p className="text-muted" style={{ marginBottom: 12 }}>
+              以下课程已被手动修改过，请选择处理方式：
+            </p>
             <div className="conflict-list">
-              {conflicts.map((conflict, i) => (
-                <ConflictItem key={i} conflict={conflict} />
+              {conflictCourses.map((course, i) => (
+                <ConflictItem
+                  key={i}
+                  course={course}
+                  conflict={conflicts.find((c) => c.course_name === course.course_name)}
+                  resolution={resolutions[course.source_hash] ?? 'keep_local'}
+                  onResolutionChange={(r) => handleResolutionChange(course.source_hash, r)}
+                />
               ))}
             </div>
           </div>
         )}
 
-        {/* Course List */}
+        {/* New Courses */}
         {validCourses.length > 0 && (
           <div className="preview-section">
             <h4>将要导入的课程</h4>
@@ -106,7 +138,7 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
         {/* Duplicates */}
         {duplicates.length > 0 && (
           <div className="preview-section">
-            <h4 className="text-warning">重复课程（将跳过）</h4>
+            <h4 className="text-muted">重复课程（将跳过）</h4>
             <table className="preview-table">
               <thead>
                 <tr>
@@ -134,8 +166,8 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
         </button>
         <button
           className="btn btn-primary"
-          onClick={onConfirm}
-          disabled={hasErrors || validCourses.length === 0}
+          onClick={handleConfirm}
+          disabled={hasErrors || (validCourses.length === 0 && !hasConflicts)}
         >
           确认导入
         </button>
@@ -154,24 +186,64 @@ function ErrorItem({ error }: { error: ImportError }) {
   );
 }
 
-function ConflictItem({ conflict }: { conflict: ImportConflict }) {
+function ConflictItem({
+  course,
+  conflict,
+  resolution,
+  onResolutionChange,
+}: {
+  course: ImportCourseItem;
+  conflict?: ImportConflict;
+  resolution: 'skip' | 'overwrite' | 'keep_local';
+  onResolutionChange: (r: 'skip' | 'overwrite' | 'keep_local') => void;
+}) {
   return (
     <div className="conflict-item">
-      <div className="conflict-course">{conflict.course_name}</div>
+      <div className="conflict-course">{course.course_name}</div>
       <div className="conflict-details">
         <div className="conflict-existing">
-          <span className="conflict-label">现有：</span>
-          <span>地点 {conflict.existing_location || '无'}</span>
-          <span>备注 {conflict.existing_note || '无'}</span>
-          {conflict.existing_updated_manually && (
-            <span className="badge">手动修改过</span>
-          )}
+          <span className="conflict-label">本地：</span>
+          <span>地点 {conflict?.existing_location || '无'}</span>
+          <span>备注 {conflict?.existing_note || '无'}</span>
+          <span className="badge">手动修改过</span>
         </div>
         <div className="conflict-new">
-          <span className="conflict-label">新数据：</span>
-          <span>地点 {conflict.new_location || '无'}</span>
-          <span>备注 {conflict.new_note || '无'}</span>
+          <span className="conflict-label">导入：</span>
+          <span>地点 {conflict?.new_location || course.event.location || '无'}</span>
+          <span>备注 {conflict?.new_note || course.event.note || '无'}</span>
         </div>
+      </div>
+      <div className="conflict-actions">
+        <label className="radio-label">
+          <input
+            type="radio"
+            name={`conflict-${course.source_hash}`}
+            value="keep_local"
+            checked={resolution === 'keep_local'}
+            onChange={() => onResolutionChange('keep_local')}
+          />
+          保留本地
+        </label>
+        <label className="radio-label">
+          <input
+            type="radio"
+            name={`conflict-${course.source_hash}`}
+            value="overwrite"
+            checked={resolution === 'overwrite'}
+            onChange={() => onResolutionChange('overwrite')}
+          />
+          覆盖为导入
+        </label>
+        <label className="radio-label">
+          <input
+            type="radio"
+            name={`conflict-${course.source_hash}`}
+            value="skip"
+            checked={resolution === 'skip'}
+            onChange={() => onResolutionChange('skip')}
+          />
+          跳过
+        </label>
       </div>
     </div>
   );

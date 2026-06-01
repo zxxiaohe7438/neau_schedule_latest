@@ -19,6 +19,7 @@ export interface ImportCourseItem {
   source_hash: string;
   is_duplicate: boolean;
   has_conflict: boolean;
+  conflict_resolution?: 'skip' | 'overwrite' | 'keep_local';
 }
 
 export interface ImportError {

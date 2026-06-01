@@ -185,11 +185,9 @@ export function App() {
     []
   );
 
-  const handleImportConfirm = useCallback(async () => {
-    if (!importResult) return;
-
+  const handleImportConfirm = useCallback(async (updatedResult: ImportResult) => {
     try {
-      await window.api.import.confirmImport(importResult);
+      await window.api.import.confirmImport(updatedResult);
       setImportResult(null);
       setView('timetable');
       // Reload data
@@ -197,7 +195,7 @@ export function App() {
     } catch (err) {
       alert(err instanceof Error ? err.message : '导入确认失败');
     }
-  }, [importResult, loadSemesters]);
+  }, [loadSemesters]);
 
   const handleImportCancel = useCallback(() => {
     setImportResult(null);

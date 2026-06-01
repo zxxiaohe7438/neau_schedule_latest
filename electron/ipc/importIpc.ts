@@ -1,10 +1,42 @@
 import { ipcMain } from 'electron';
-import type { ImportResult } from '../../src/domain/ImportResult';
+import type { ImportResult, ImportConflict } from '../../src/domain/ImportResult';
 import { importJson } from '../../src/importers/jsonImporter';
+import { importHtml } from '../../src/importers/htmlImporter';
+import { importClipboard } from '../../src/importers/clipboardImporter';
 import { createSemesterRepo } from '../../src/db/repositories/semesterRepo';
 import { createCourseRepo } from '../../src/db/repositories/courseRepo';
 import { createCourseEventRepo } from '../../src/db/repositories/courseEventRepo';
 import { getCourseColor } from '../../src/utils/courseColor';
+
+/**
+ * Check for duplicates and conflicts in import result.
+ */
+function checkDuplicatesAndConflicts(
+  result: ImportResult,
+  courseEventRepo: ReturnType<typeof createCourseEventRepo>
+): void {
+  for (const item of result.courses) {
+    const existing = courseEventRepo.findBySourceHash(item.source_hash);
+    if (existing) {
+      // Check if manually updated
+      if (existing.updated_manually) {
+        item.has_conflict = true;
+        const conflict: ImportConflict = {
+          course_name: item.course_name,
+          existing_event_id: existing.id,
+          existing_location: existing.location,
+          existing_note: existing.note,
+          existing_updated_manually: true,
+          new_location: item.event.location ?? '',
+          new_note: item.event.note ?? '',
+        };
+        result.conflicts.push(conflict);
+      } else {
+        item.is_duplicate = true;
+      }
+    }
+  }
+}
 
 export function registerImportIpc(): void {
   const semesterRepo = createSemesterRepo();
@@ -13,26 +45,20 @@ export function registerImportIpc(): void {
 
   ipcMain.handle('import:json', (_event, data: unknown): ImportResult => {
     const result = importJson(data);
-
-    // Check for duplicates against existing data
-    for (const item of result.courses) {
-      const existing = courseEventRepo.findBySourceHash(item.source_hash);
-      if (existing) {
-        item.is_duplicate = true;
-      }
-    }
-
+    checkDuplicatesAndConflicts(result, courseEventRepo);
     return result;
   });
 
-  ipcMain.handle('import:html', (_event, _html: string): ImportResult => {
-    // TODO: implement htmlImporter
-    throw new Error('HTML importer not yet implemented');
+  ipcMain.handle('import:html', (_event, html: string): ImportResult => {
+    const result = importHtml(html);
+    checkDuplicatesAndConflicts(result, courseEventRepo);
+    return result;
   });
 
-  ipcMain.handle('import:clipboard', (_event, _text: string): ImportResult => {
-    // TODO: implement clipboardImporter
-    throw new Error('Clipboard importer not yet implemented');
+  ipcMain.handle('import:clipboard', (_event, text: string): ImportResult => {
+    const result = importClipboard(text);
+    checkDuplicatesAndConflicts(result, courseEventRepo);
+    return result;
   });
 
   ipcMain.handle('import:xlsx', (_event, _buffer: ArrayBuffer): ImportResult => {
@@ -61,8 +87,8 @@ export function registerImportIpc(): void {
       // Skip duplicates
       if (item.is_duplicate) continue;
 
-      // Skip items with conflicts (user should resolve)
-      if (item.has_conflict) continue;
+      // Skip conflicts (user chose to skip)
+      if (item.has_conflict && item.conflict_resolution === 'skip') continue;
 
       // Get or create course
       let courseId = courseMap.get(item.course_name);
@@ -75,25 +101,42 @@ export function registerImportIpc(): void {
           courseId = existing.id;
         } else {
           // Assign color based on course name
-          const usedColors = new Set(existingCourses.map((c) => c.color));
           const color = getCourseColor(item.course_name);
 
           const course = courseRepo.create({
             semester_id: semester.id,
             name: item.course_name,
             teacher: item.teacher,
-            color: usedColors.has(color) ? color : color,
+            color,
           });
           courseId = course.id;
         }
         courseMap.set(item.course_name, courseId);
       }
 
-      // Create course event
-      courseEventRepo.create({
-        ...item.event,
-        course_id: courseId,
-      });
+      // Handle conflict resolution
+      if (item.has_conflict && item.conflict_resolution === 'overwrite') {
+        // Update existing event
+        const existing = courseEventRepo.findBySourceHash(item.source_hash);
+        if (existing) {
+          courseEventRepo.update(existing.id, {
+            location: item.event.location,
+            note: item.event.note,
+            weekday: item.event.weekday,
+            start_section: item.event.start_section,
+            end_section: item.event.end_section,
+            start_week: item.event.start_week,
+            end_week: item.event.end_week,
+            week_pattern: item.event.week_pattern,
+          });
+        }
+      } else {
+        // Create new course event
+        courseEventRepo.create({
+          ...item.event,
+          course_id: courseId,
+        });
+      }
     }
   });
 }

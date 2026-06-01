@@ -33,9 +33,13 @@ interface RawJsonInput {
 
 /**
  * Compute a deterministic hash for a course event source.
+ * Note: note is excluded because it's a user-editable field.
  */
 export function computeSourceHash(
+  semesterName: string,
   courseName: string,
+  teacher: string,
+  location: string,
   weekday: number,
   startSection: number,
   endSection: number,
@@ -43,7 +47,7 @@ export function computeSourceHash(
   endWeek: number,
   weekPattern: string
 ): string {
-  const raw = `${courseName}|${weekday}|${startSection}-${endSection}|${startWeek}-${endWeek}|${weekPattern}`;
+  const raw = `${semesterName}|${courseName}|${teacher}|${location}|${weekday}|${startSection}-${endSection}|${startWeek}-${endWeek}|${weekPattern}`;
   return createHash('sha256').update(raw).digest('hex').slice(0, 16);
 }
 
@@ -140,7 +144,10 @@ export function normalizeJsonImport(input: unknown): ImportResult {
 
     // All valid — compute hash and add
     const sourceHash = computeSourceHash(
+      semesterName,
       c.courseName,
+      c.teacher ?? '',
+      c.location ?? '',
       c.weekday,
       startSection,
       endSection,

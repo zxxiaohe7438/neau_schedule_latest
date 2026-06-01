@@ -831,3 +831,47 @@ body {
   padding-top: 16px;
   border-top: 1px solid var(--color-border);
 }
+
+/* Conflict Resolution */
+.conflict-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.radio-label input[type="radio"] {
+  margin: 0;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: #e8a838;
+  color: white;
+}
+
+/* Text utilities */
+.text-error {
+  color: var(--color-danger) !important;
+}
+
+.text-warning {
+  color: #e8a838 !important;
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
