@@ -50,6 +50,19 @@ export function createSemesterRepo() {
     },
 
     delete(id: number): void {
+      // Explicitly delete related data in correct order
+      // Delete course events first (must be before courses)
+      execute(
+        'DELETE FROM course_events WHERE course_id IN (SELECT id FROM courses WHERE semester_id = ?)',
+        [id]
+      );
+      // Delete courses
+      execute('DELETE FROM courses WHERE semester_id = ?', [id]);
+      // Delete section times
+      execute('DELETE FROM section_times WHERE semester_id = ?', [id]);
+      // Delete import batches
+      execute('DELETE FROM import_batches WHERE semester_id = ?', [id]);
+      // Finally delete semester
       execute('DELETE FROM semesters WHERE id = ?', [id]);
     },
 

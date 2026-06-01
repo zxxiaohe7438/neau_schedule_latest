@@ -82,7 +82,10 @@ export function registerImportIpc(): void {
     const result = importSchoolIndex(content);
     // Find existing semester to check for duplicates within that semester
     const existingSemester = semesterRepo.list().find(s => s.name === result.semester.name);
-    checkDuplicatesAndConflicts(result, courseEventRepo, existingSemester?.id);
+    // Only check duplicates if semester exists (otherwise no data in database)
+    if (existingSemester) {
+      checkDuplicatesAndConflicts(result, courseEventRepo, existingSemester.id);
+    }
     return result;
   });
 
