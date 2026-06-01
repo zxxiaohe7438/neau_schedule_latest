@@ -6,10 +6,11 @@ interface Props {
   onCreated: (semester: Semester) => void;
   onDeleted: (id: number) => void;
   onSeedMockData?: () => void;
+  onClearAllData?: () => void;
   onExportBackup?: (semesterId: number) => void;
 }
 
-export function SemesterManager({ semesters, onCreated, onDeleted, onSeedMockData, onExportBackup }: Props) {
+export function SemesterManager({ semesters, onCreated, onDeleted, onSeedMockData, onClearAllData, onExportBackup }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<SemesterCreateInput>({
     name: '',
@@ -84,6 +85,18 @@ export function SemesterManager({ semesters, onCreated, onDeleted, onSeedMockDat
       <div className="semester-manager-header">
         <h2>学期管理</h2>
         <div className="semester-manager-actions">
+          {onClearAllData && semesters.length > 0 && (
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={() => {
+                if (confirm('确定要清空所有数据吗？此操作不可撤销！')) {
+                  onClearAllData();
+                }
+              }}
+            >
+              清空所有数据
+            </button>
+          )}
           {onSeedMockData && (
             <button className="btn btn-secondary" onClick={onSeedMockData}>
               加载测试数据

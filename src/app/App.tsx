@@ -140,6 +140,25 @@ export function App() {
     }
   }, []);
 
+  const handleClearAllData = useCallback(async () => {
+    try {
+      if (!window.api.dev) {
+        console.error('Dev API not available');
+        return;
+      }
+      await window.api.dev.clearAll();
+      setSemesters([]);
+      setActiveSemesterId(null);
+      setCourses([]);
+      setEvents([]);
+      setSectionTimes([]);
+      setUnscheduledCourses([]);
+      setView('home');
+    } catch (err) {
+      console.error('Failed to clear all data:', err);
+    }
+  }, []);
+
   const handleDeleteEvent = useCallback(
     async (eventId: number) => {
       try {
@@ -411,6 +430,7 @@ export function App() {
             onCreated={handleSemesterCreated}
             onDeleted={handleSemesterDeleted}
             onSeedMockData={window.api.dev ? handleSeedMockData : undefined}
+            onClearAllData={window.api.dev ? handleClearAllData : undefined}
           />
         ) : view === 'import' && importResult ? (
           <ImportPreview
