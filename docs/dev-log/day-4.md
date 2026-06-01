@@ -156,8 +156,9 @@ Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
 ### 解决方案
 
 1. 降级 cheerio 从 `1.2.0` 到 `1.0.0-rc.12`（不依赖 undici）
-2. 在 `vite.config.ts` 中配置 `rollupOptions.external` 排除 `node:*` 模块
-3. 在 `CLAUDE.md` 中记录依赖兼容性注意事项
+2. **cheerio 必须精确固定为 `1.0.0-rc.12`**（不能使用 `^1.0.0-rc.12` 或 `~1.0.0-rc.12`）
+3. 在 `vite.config.ts` 中配置 `rollupOptions.external` 排除 `node:*` 模块
+4. 在 `CLAUDE.md` 中记录依赖兼容性注意事项
 
 ### 修改文件
 

@@ -33,7 +33,7 @@
 ### cheerio 版本兼容性
 
 - **cheerio@1.2.0** 通过 undici 依赖 `node:sqlite`，而 Electron 的 Node.js 版本不支持此模块，会导致启动错误：`ERR_UNKNOWN_BUILTIN_MODULE: No such built-in module: node:sqlite`
-- **当前固定 cheerio@1.0.0-rc.12**，此版本不依赖 undici
+- **cheerio 必须精确固定为 1.0.0-rc.12**（不能使用 `^1.0.0-rc.12` 或 `~1.0.0-rc.12`）
 - **禁止升级 cheerio 到 1.2.0 或更高版本**，除非确认 undici 不再引用 node:sqlite
 
 ### 数据库方案
@@ -75,10 +75,3 @@ tests/             — 测试和 fixtures
 - 不使用 rg（ripgrep）。
 - 不使用 any，除非有明确理由并写注释说明。
 - 所有检查命令都必须有真实输出，不允许用 None 或空输出作为成功依据。
-
-## Dependency Compatibility Notes
-
-- Keep `cheerio` pinned to `1.0.0-rc.12`.
-- Do not upgrade `cheerio` to `1.2.0` unless Electron Node compatibility is verified.
-- Previous failure: `cheerio@1.2.0` pulled `undici`, which referenced `node:sqlite`, causing Electron startup failure.
-- Do not introduce `better-sqlite3` or `sqlite3`; current database implementation is `sql.js`.

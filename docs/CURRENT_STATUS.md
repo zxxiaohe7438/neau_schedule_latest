@@ -48,7 +48,7 @@ Day 1 原计划使用 better-sqlite3，但在 Windows 环境下遇到编译问�
 ### cheerio 版本
 
 - **cheerio@1.2.0** 通过 undici 依赖 `node:sqlite`，会导致启动错误
-- **当前固定 cheerio@1.0.0-rc.12**
+- **cheerio 必须精确固定为 1.0.0-rc.12**（不能使用 `^1.0.0-rc.12` 或 `~1.0.0-rc.12`）
 - **禁止升级 cheerio 到 1.2.0 或更高版本**
 
 ### 禁止引入的依赖
