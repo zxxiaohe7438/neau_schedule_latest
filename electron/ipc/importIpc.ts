@@ -8,6 +8,8 @@ import { importSchoolIndex } from '../../src/importers/schoolIndexImporter';
 import { createSemesterRepo } from '../../src/db/repositories/semesterRepo';
 import { createCourseRepo } from '../../src/db/repositories/courseRepo';
 import { createCourseEventRepo } from '../../src/db/repositories/courseEventRepo';
+import { createSectionTimeRepo } from '../../src/db/repositories/sectionTimeRepo';
+import { DEFAULT_SECTION_TIMES } from '../../src/domain/SectionTime';
 import { getCourseColor } from '../../src/utils/courseColor';
 
 /**
@@ -44,6 +46,7 @@ export function registerImportIpc(): void {
   const semesterRepo = createSemesterRepo();
   const courseRepo = createCourseRepo();
   const courseEventRepo = createCourseEventRepo();
+  const sectionTimeRepo = createSectionTimeRepo();
 
   ipcMain.handle('import:json', (_event, data: unknown): ImportResult => {
     const result = importJson(data);
@@ -86,6 +89,8 @@ export function registerImportIpc(): void {
         start_date: semesterData.start_date,
         weeks_count: semesterData.weeks_count,
       });
+      // Initialize default section times for new semester
+      sectionTimeRepo.upsertBatch(semester.id, DEFAULT_SECTION_TIMES);
     }
 
     // Track created courses by name to avoid duplicates

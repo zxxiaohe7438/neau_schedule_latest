@@ -228,12 +228,18 @@ export function App() {
       await window.api.import.confirmImport(updatedResult);
       setImportResult(null);
       setView('timetable');
-      // Reload data
-      await loadSemesters();
+      // Reload semester list
+      const list = await window.api.semester.list();
+      setSemesters(list);
+      // Find the semester we just imported to
+      const importedSemester = list.find(s => s.name === updatedResult.semester.name);
+      if (importedSemester) {
+        setActiveSemesterId(importedSemester.id);
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : '导入确认失败');
     }
-  }, [loadSemesters]);
+  }, []);
 
   const handleImportCancel = useCallback(() => {
     setImportResult(null);
