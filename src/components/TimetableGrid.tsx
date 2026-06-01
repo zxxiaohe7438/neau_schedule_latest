@@ -19,6 +19,7 @@ interface TimetableGridProps {
   currentWeek: number;
   onWeekChange: (week: number) => void;
   onEventClick?: (event: CourseEvent, course: Course) => void;
+  onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
 }
 
 /** Map from course_id to Course for quick lookup */
@@ -73,6 +74,7 @@ export function TimetableGrid({
   currentWeek,
   onWeekChange,
   onEventClick,
+  onEventDoubleClick,
 }: TimetableGridProps) {
   const courseMap = useMemo(() => buildCourseMap(courses), [courses]);
   const grid = useMemo(
@@ -172,6 +174,7 @@ export function TimetableGrid({
               grid={grid}
               coveredCells={coveredCells}
               onEventClick={onEventClick}
+              onEventDoubleClick={onEventDoubleClick}
             />
           );
         })}
@@ -187,12 +190,14 @@ function RowCells({
   grid,
   coveredCells,
   onEventClick,
+  onEventDoubleClick,
 }: {
   sectionNo: number;
   time: SectionTime | undefined;
   grid: Map<string, GridCell>;
   coveredCells: Set<string>;
   onEventClick?: (event: CourseEvent, course: Course) => void;
+  onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
 }) {
   return (
     <>
@@ -232,7 +237,8 @@ function RowCells({
               borderLeft: `3px solid ${cell.course.color}`,
             }}
             onClick={() => onEventClick?.(cell.event, cell.course)}
-            title={`${cell.course.name}\n${cell.event.location}\n${cell.course.teacher}\n第${cell.event.start_week}-${cell.event.end_week}周`}
+            onDoubleClick={() => onEventDoubleClick?.(cell.event, cell.course)}
+            title={`${cell.course.name}\n${cell.event.location}\n${cell.course.teacher}\n第${cell.event.start_week}-${cell.event.end_week}周\n双击编辑`}
           >
             <div
               className="course-name"

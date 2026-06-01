@@ -1,15 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Semester } from '../domain/Semester';
 import type { Course } from '../domain/Course';
 import type { CourseEvent } from '../domain/CourseEvent';
 import type { SectionTime } from '../domain/SectionTime';
+import type { ImportResult } from '../domain/ImportResult';
 import { SemesterManager } from '../components/SemesterManager';
 import { SemesterSwitcher } from '../components/SemesterSwitcher';
 import { TimetableGrid } from '../components/TimetableGrid';
 import { CourseListView } from '../components/CourseListView';
+import { CourseEditor } from '../components/CourseEditor';
+import { ImportPreview } from '../components/ImportPreview';
+import { Modal } from '../components/Modal';
 import { getWeekNumber } from '../utils/dateUtils';
 
-type View = 'home' | 'timetable' | 'list';
+type View = 'home' | 'timetable' | 'list' | 'import' | 'edit';
 
 export function App() {
   const [semesters, setSemesters] = useState<Semester[]>([]);
@@ -22,6 +26,15 @@ export function App() {
   const [events, setEvents] = useState<CourseEvent[]>([]);
   const [sectionTimes, setSectionTimes] = useState<SectionTime[]>([]);
   const [currentWeek, setCurrentWeek] = useState(1);
+
+  // Import state
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Edit state
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [editingEvent, setEditingEvent] = useState<CourseEvent | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const loadSemesters = useCallback(async () => {
     try {
@@ -144,6 +157,135 @@ export function App() {
     []
   );
 
+  // Import handlers
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const result = await window.api.import.importJson(data);
+        setImportResult(result);
+        setView('import');
+      } catch (err) {
+        alert(err instanceof Error ? err.message : '导入失败');
+      }
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    },
+    []
+  );
+
+  const handleImportConfirm = useCallback(async () => {
+    if (!importResult) return;
+
+    try {
+      await window.api.import.confirmImport(importResult);
+      setImportResult(null);
+      setView('timetable');
+      // Reload data
+      await loadSemesters();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '导入确认失败');
+    }
+  }, [importResult, loadSemesters]);
+
+  const handleImportCancel = useCallback(() => {
+    setImportResult(null);
+    setView('timetable');
+  }, []);
+
+  // Edit handlers
+  const handleEditEvent = useCallback(
+    (event: CourseEvent) => {
+      const course = courses.find((c) => c.id === event.course_id);
+      if (course) {
+        setEditingCourse(course);
+        setEditingEvent(event);
+        setView('edit');
+      }
+    },
+    [courses]
+  );
+
+  const handleEditCourse = useCallback(
+    (course: Course) => {
+      // Find first event for this course
+      const event = events.find((e) => e.course_id === course.id);
+      setEditingCourse(course);
+      setEditingEvent(event ?? null);
+      setView('edit');
+    },
+    [events]
+  );
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleSaveEdit = useCallback(
+    async (courseData: any, eventData?: any) => {
+      if (!editingCourse) return;
+
+      try {
+        // Update course
+        if (Object.keys(courseData).length > 0) {
+          await window.api.course.update(editingCourse.id, courseData);
+        }
+
+        // Update event
+        if (editingEvent && eventData && Object.keys(eventData).length > 0) {
+          await window.api.courseEvent.update(editingEvent.id, eventData);
+        }
+
+        // Reload data
+        if (activeSemesterId) {
+          const [courseList, eventList] = await Promise.all([
+            window.api.course.listBySemester(activeSemesterId),
+            window.api.courseEvent.listBySemester(activeSemesterId),
+          ]);
+          setCourses(courseList);
+          setEvents(eventList);
+        }
+
+        setEditingCourse(null);
+        setEditingEvent(null);
+        setShowEditModal(false);
+        if (view === 'edit') {
+          setView('list');
+        }
+      } catch (err) {
+        alert(err instanceof Error ? err.message : '保存失败');
+      }
+    },
+    [editingCourse, editingEvent, activeSemesterId, view]
+  );
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingCourse(null);
+    setEditingEvent(null);
+    if (showEditModal) {
+      setShowEditModal(false);
+    } else {
+      setView('list');
+    }
+  }, [showEditModal]);
+
+  const handleTimetableDoubleClick = useCallback(
+    (event: CourseEvent, course: Course) => {
+      setEditingCourse(course);
+      setEditingEvent(event);
+      setShowEditModal(true);
+    },
+    []
+  );
+
   const activeSemester = semesters.find((s) => s.id === activeSemesterId);
 
   if (loading) {
@@ -157,6 +299,15 @@ export function App() {
 
   return (
     <div className="app">
+      {/* Hidden file input for JSON import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+
       <header className="app-header">
         <h1 className="app-title" onClick={() => setView('home')}>
           NEAU Local Schedule
@@ -168,7 +319,14 @@ export function App() {
             onSelect={handleSelectSemester}
           />
         )}
-        {view !== 'home' && activeSemesterId && (
+        {view !== 'home' && view !== 'import' && (
+          <div className="header-actions">
+            <button className="btn btn-sm" onClick={handleImportClick}>
+              导入 JSON
+            </button>
+          </div>
+        )}
+        {view !== 'home' && view !== 'import' && activeSemesterId && (
           <nav className="view-tabs">
             <button
               className={`view-tab ${view === 'timetable' ? 'active' : ''}`}
@@ -193,6 +351,12 @@ export function App() {
             onDeleted={handleSemesterDeleted}
             onSeedMockData={window.api.dev ? handleSeedMockData : undefined}
           />
+        ) : view === 'import' && importResult ? (
+          <ImportPreview
+            result={importResult}
+            onConfirm={handleImportConfirm}
+            onCancel={handleImportCancel}
+          />
         ) : view === 'timetable' && activeSemester ? (
           <TimetableGrid
             semester={activeSemester}
@@ -201,6 +365,14 @@ export function App() {
             sectionTimes={sectionTimes}
             currentWeek={currentWeek}
             onWeekChange={setCurrentWeek}
+            onEventDoubleClick={handleTimetableDoubleClick}
+          />
+        ) : view === 'edit' && editingCourse ? (
+          <CourseEditor
+            course={editingCourse}
+            event={editingEvent ?? undefined}
+            onSave={handleSaveEdit}
+            onCancel={handleCancelEdit}
           />
         ) : view === 'list' ? (
           <CourseListView
@@ -208,9 +380,31 @@ export function App() {
             events={events}
             onDeleteEvent={handleDeleteEvent}
             onDeleteCourse={handleDeleteCourse}
+            onEditEvent={handleEditEvent}
+            onEditCourse={handleEditCourse}
           />
         ) : null}
       </main>
+
+      {/* Edit Modal for double-click on timetable */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingCourse(null);
+          setEditingEvent(null);
+        }}
+        title="编辑课程"
+      >
+        {editingCourse && (
+          <CourseEditor
+            course={editingCourse}
+            event={editingEvent ?? undefined}
+            onSave={handleSaveEdit}
+            onCancel={handleCancelEdit}
+          />
+        )}
+      </Modal>
     </div>
   );
 }
