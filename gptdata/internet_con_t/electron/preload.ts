@@ -20,11 +20,6 @@ import type {
 } from '../src/domain/CourseEvent';
 import type { ImportResult } from '../src/domain/ImportResult';
 import type { BackupData } from '../src/domain/BackupData';
-import type {
-  CellAnnotation,
-  CellAnnotationCreateInput,
-  CellAnnotationUpdateInput,
-} from '../src/domain/CellAnnotation';
 
 export interface AuthLoginResult {
   success: boolean;
@@ -36,7 +31,6 @@ export interface AuthLoginResult {
 export interface AuthStatus {
   loggedIn: boolean;
   username: string | null;
-  activeUsername: string | null;
 }
 
 export interface ElectronAPI {
@@ -46,8 +40,6 @@ export interface ElectronAPI {
     logout: () => Promise<void>;
     status: () => Promise<AuthStatus>;
     fetchSchedule: (username: string) => Promise<ImportResult>;
-    listAccounts: () => Promise<string[]>;
-    switchAccount: (username: string) => Promise<{ success: boolean; error?: string }>;
   };
   // Semester
   semester: {
@@ -89,7 +81,6 @@ export interface ElectronAPI {
     importClipboard: (text: string) => Promise<ImportResult>;
     importXlsx: (buffer: ArrayBuffer) => Promise<ImportResult>;
     importSchoolIndex: (content: string) => Promise<ImportResult>;
-    importRecognizeText: (text: string) => Promise<ImportResult>;
     confirmImport: (result: ImportResult) => Promise<void>;
   };
   // Backup
@@ -104,13 +95,6 @@ export interface ElectronAPI {
     seed: () => Promise<Semester>;
     clearAll: () => Promise<{ success: boolean }>;
   };
-  // Cell Annotations
-  cellAnnotation: {
-    listBySemester: (semesterId: number) => Promise<CellAnnotation[]>;
-    create: (input: CellAnnotationCreateInput) => Promise<CellAnnotation>;
-    update: (id: number, input: CellAnnotationUpdateInput) => Promise<CellAnnotation>;
-    delete: (id: number) => Promise<void>;
-  };
 }
 
 const api: ElectronAPI = {
@@ -119,8 +103,6 @@ const api: ElectronAPI = {
     logout: () => ipcRenderer.invoke('auth:logout'),
     status: () => ipcRenderer.invoke('auth:status'),
     fetchSchedule: (username) => ipcRenderer.invoke('auth:fetchSchedule', username),
-    listAccounts: () => ipcRenderer.invoke('auth:listAccounts'),
-    switchAccount: (username) => ipcRenderer.invoke('auth:switchAccount', username),
   },
   semester: {
     list: () => ipcRenderer.invoke('semester:list'),
@@ -163,7 +145,6 @@ const api: ElectronAPI = {
     importClipboard: (text) => ipcRenderer.invoke('import:clipboard', text),
     importXlsx: (buffer) => ipcRenderer.invoke('import:xlsx', buffer),
     importSchoolIndex: (content) => ipcRenderer.invoke('import:schoolIndex', content),
-    importRecognizeText: (text) => ipcRenderer.invoke('import:recognizeText', text),
     confirmImport: (result) => ipcRenderer.invoke('import:confirm', result),
   },
   backup: {
@@ -175,13 +156,6 @@ const api: ElectronAPI = {
   dev: {
     seed: () => ipcRenderer.invoke('dev:seed'),
     clearAll: () => ipcRenderer.invoke('dev:clearAll'),
-  },
-  cellAnnotation: {
-    listBySemester: (semesterId) =>
-      ipcRenderer.invoke('cellAnnotation:listBySemester', semesterId),
-    create: (input) => ipcRenderer.invoke('cellAnnotation:create', input),
-    update: (id, input) => ipcRenderer.invoke('cellAnnotation:update', id, input),
-    delete: (id) => ipcRenderer.invoke('cellAnnotation:delete', id),
   },
 };
 

@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-完全本地运行的东北农业大学个人日程安排管理桌面软件。
+完全本地运行的东北农业大学个人课表管理桌面软件。
 
 ## 开发进度
 
@@ -18,10 +18,6 @@
 | Day 5 | ⏳ 待做 | Excel/CSV 导入、备份恢复、学期归档 |
 | Day 6 | ⏳ 待做 | 导出器框架、打包、总验收 |
 | Online Login | ✅ 完成 | 学校账号登录 UI、凭据加密存储、mock 登录验证、callback JSON 解析 |
-| Account Binding | ✅ 完成 | 多账号独立数据库、账号切换、数据隔离 |
-| Cell Annotations | ✅ 完成 | 自定义格子备注和颜色 |
-| Smart Paste | ✅ 完成 | 智能粘贴识别考试时间等信息 |
-| UI Improvements | ✅ 完成 | 暗色模式、今日高亮改进 |
 
 ## 技术栈
 
@@ -102,33 +98,6 @@
 - callback JSON 解析（schoolIndexImporter）
 - Mock callback fixtures（6 门课程，覆盖 all/odd/even 周模式）
 
-### 账号数据绑定
-
-- 多账号独立数据库（每个账号一个 schedule.db）
-- 账号切换 UI（AccountSwitcher 组件）
-- 数据隔离（登录显示该账号数据，退出隐藏）
-- 数据迁移（首次登录自动迁移旧数据库）
-
-### 自定义格子备注
-
-- cell_annotations 表（存储备注和颜色）
-- CellNoteEditor 组件（点击空格子编辑备注）
-- 9 种预设颜色选择
-- 备注按周次和单双周过滤
-
-### 智能粘贴识别
-
-- textRecognizer.ts（解析多种格式的文本）
-- 支持考试时间表、NEAU 官方格式、非正式文本
-- SmartPasteDialog 组件（粘贴预览和确认导入）
-- 时间映射（14:00-16:00 → 第5-6节）
-
-### UI 优化
-
-- 暗色模式（CSS 变量切换，localStorage 持久化）
-- 今日高亮改进
-- 标题栏显示当前周次
-
 ### 数据保护
 
 - 手动修改标记 updated_manually
@@ -144,14 +113,13 @@
 ## 测试状态
 
 - TypeScript 类型检查：✅ 通过
-- 单元测试：✅ 60 个测试通过，8 个跳过
+- 单元测试：✅ 23+ 个通过
   - JSON 导入器：7 个
   - HTML 导入器：5 个
   - 剪贴板导入器：6 个
   - CSV 导入器：5 个
   - Mock callback 导入器：11 个
-  - Auth service mock：8 个
-  - 其他测试：18 个
+  - Auth service mock：6 个
 
 ## 文件结构
 
@@ -166,30 +134,21 @@ src/
     SemesterSwitcher.tsx    — 学期切换器
     ImportPreview.tsx       — 导入预览
     LoginPanel.tsx          — 登录面板（使用 IPC auth）
-    AccountSwitcher.tsx     — 账号切换器
-    CellNoteEditor.tsx      — 格子备注编辑器
-    SmartPasteDialog.tsx    — 智能粘贴对话框
     Modal.tsx               — 弹窗组件
   db/
-    connection.ts           — sql.js 连接管理（支持多数据库）
-    schema.sql              — 数据库 schema（含 cell_annotations）
+    connection.ts           — sql.js 连接管理
+    schema.sql              — 数据库 schema
     seed.ts                 — 开发模式种子数据
-    repositories/
-      semesterRepo.ts       — 学期数据访问
-      courseRepo.ts         — 课程数据访问
-      courseEventRepo.ts    — 课程事件数据访问
-      sectionTimeRepo.ts    — 节次时间数据访问
-      cellAnnotationRepo.ts — 格子备注数据访问
+    repositories/           — 数据访问层
   importers/
     jsonImporter.ts         — JSON 导入
     htmlImporter.ts         — HTML 导入
     clipboardImporter.ts    — 剪贴板导入
     xlsxImporter.ts         — CSV/Excel 导入
     schoolIndexImporter.ts  — NEAU callback JSON 导入
-    textRecognizer.ts       — 智能文本识别
     normalizer.ts           — 数据规范化
   security/
-    credentialStore.ts      — 凭据加密存储（支持多账号）
+    credentialStore.ts      — 凭据加密存储
   domain/                   — 类型定义
   utils/                    — 工具函数
 electron/
@@ -198,7 +157,6 @@ electron/
   ipc/
     authIpc.ts              — 认证 IPC handlers
     importIpc.ts            — 导入 IPC handlers
-    cellAnnotationIpc.ts    — 格子备注 IPC handlers
     ...
   services/
     schoolAuthService.ts    — 学校认证服务（mock 模式）
@@ -206,7 +164,7 @@ electron/
 
 ## 下一步
 
-1. ✅ 运行 typecheck 和测试验证所有改动（已完成）
+1. 运行 typecheck 和测试验证所有改动
 2. 运行 dev 模式确认 UI 正常
 3. 接入真实学校系统（需要用户手动测试）
 4. 配置 electron-builder 打包

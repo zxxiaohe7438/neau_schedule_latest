@@ -69,3 +69,22 @@ CREATE INDEX IF NOT EXISTS idx_courses_semester ON courses(semester_id);
 CREATE INDEX IF NOT EXISTS idx_course_events_course ON course_events(course_id);
 CREATE INDEX IF NOT EXISTS idx_course_events_weekday ON course_events(weekday);
 CREATE INDEX IF NOT EXISTS idx_course_events_source_hash ON course_events(source_hash);
+
+-- Cell annotations for custom notes/colors on empty timetable cells
+CREATE TABLE IF NOT EXISTS cell_annotations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  semester_id INTEGER NOT NULL,
+  weekday INTEGER NOT NULL CHECK(weekday >= 1 AND weekday <= 7),
+  section_no INTEGER NOT NULL,
+  start_week INTEGER NOT NULL,
+  end_week INTEGER NOT NULL,
+  week_pattern TEXT NOT NULL DEFAULT 'all' CHECK(week_pattern IN ('all', 'odd', 'even')),
+  note TEXT NOT NULL DEFAULT '',
+  color TEXT NOT NULL DEFAULT '#FFE082',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE CASCADE,
+  UNIQUE(semester_id, weekday, section_no, start_week, end_week, week_pattern)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cell_annotations_semester ON cell_annotations(semester_id);

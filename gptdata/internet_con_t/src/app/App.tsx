@@ -4,7 +4,6 @@ import type { Course } from '../domain/Course';
 import type { CourseEvent } from '../domain/CourseEvent';
 import type { SectionTime } from '../domain/SectionTime';
 import type { ImportResult } from '../domain/ImportResult';
-import type { CellAnnotation, CellAnnotationCreateInput } from '../domain/CellAnnotation';
 import { SemesterManager } from '../components/SemesterManager';
 import { SemesterSwitcher } from '../components/SemesterSwitcher';
 import { TimetableGrid } from '../components/TimetableGrid';
@@ -12,9 +11,6 @@ import { CourseListView } from '../components/CourseListView';
 import { CourseEditor } from '../components/CourseEditor';
 import { ImportPreview } from '../components/ImportPreview';
 import { LoginPanel } from '../components/LoginPanel';
-import { AccountSwitcher } from '../components/AccountSwitcher';
-import { CellNoteEditor } from '../components/CellNoteEditor';
-import { SmartPasteDialog } from '../components/SmartPasteDialog';
 import { Modal } from '../components/Modal';
 import { getWeekNumber } from '../utils/dateUtils';
 
@@ -25,10 +21,6 @@ export function App() {
   const [activeSemesterId, setActiveSemesterId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('home');
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('darkMode');
-    return saved === 'true';
-  });
 
   // Data for active semester
   const [courses, setCourses] = useState<Course[]>([]);
@@ -47,22 +39,9 @@ export function App() {
   const [editingEvent, setEditingEvent] = useState<CourseEvent | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Cell annotation state
-  const [cellAnnotations, setCellAnnotations] = useState<CellAnnotation[]>([]);
-  const [editingCell, setEditingCell] = useState<{ weekday: number; sectionNo: number } | null>(null);
-
-  // Smart paste state
-  const [showSmartPaste, setShowSmartPaste] = useState(false);
-
   // Login state — uses IPC auth instead of localStorage
   const [savedUsername, setSavedUsername] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  // Toggle dark mode
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-    localStorage.setItem('darkMode', String(isDarkMode));
-  }, [isDarkMode]);
 
   // Check auth status on mount
   useEffect(() => {
@@ -71,9 +50,7 @@ export function App() {
         if (window.api.auth) {
           const status = await window.api.auth.status();
           setIsLoggedIn(status.loggedIn);
-          if (status.activeUsername) {
-            setSavedUsername(status.activeUsername);
-          } else if (status.username) {
+          if (status.username) {
             setSavedUsername(status.username);
           }
         }
@@ -117,16 +94,14 @@ export function App() {
 
     const loadSemesterData = async () => {
       try {
-        const [courseList, eventList, timeList, annotationList] = await Promise.all([
+        const [courseList, eventList, timeList] = await Promise.all([
           window.api.course.listBySemester(activeSemesterId),
           window.api.courseEvent.listBySemester(activeSemesterId),
           window.api.sectionTime.listBySemester(activeSemesterId),
-          window.api.cellAnnotation.listBySemester(activeSemesterId),
         ]);
         setCourses(courseList);
         setEvents(eventList);
         setSectionTimes(timeList);
-        setCellAnnotations(annotationList);
 
         // Find unscheduled courses (courses without events)
         const courseIdsWithEvents = new Set(eventList.map(e => e.course_id));
@@ -251,40 +226,6 @@ export function App() {
     }
     setIsLoggedIn(false);
     setSavedUsername('');
-    setSemesters([]);
-    setActiveSemesterId(null);
-    setCourses([]);
-    setEvents([]);
-    setSectionTimes([]);
-    setUnscheduledCourses([]);
-    setCellAnnotations([]);
-    setView('home');
-  }, []);
-
-  const handleSwitchAccount = useCallback(async (username: string) => {
-    try {
-      const result = await window.api.auth.switchAccount(username);
-      if (result.success) {
-        setSavedUsername(username);
-        // Reload all data for the new account
-        const list = await window.api.semester.list();
-        setSemesters(list);
-        const active = list.find((s) => !s.is_archived);
-        if (active) {
-          setActiveSemesterId(active.id);
-          setView('timetable');
-        } else {
-          setActiveSemesterId(null);
-          setView('home');
-        }
-      }
-    } catch {
-      // Ignore
-    }
-  }, []);
-
-  const handleAddAccount = useCallback(() => {
-    setView('login');
   }, []);
 
   // Import handlers
@@ -462,72 +403,6 @@ export function App() {
     []
   );
 
-  // Cell annotation handlers
-  const handleEmptyCellClick = useCallback(
-    (weekday: number, sectionNo: number) => {
-      setEditingCell({ weekday, sectionNo });
-    },
-    []
-  );
-
-  const handleSaveAnnotation = useCallback(
-    async (input: CellAnnotationCreateInput) => {
-      try {
-        await window.api.cellAnnotation.create(input);
-        if (activeSemesterId) {
-          const annotations = await window.api.cellAnnotation.listBySemester(activeSemesterId);
-          setCellAnnotations(annotations);
-        }
-        setEditingCell(null);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '保存备注失败');
-      }
-    },
-    [activeSemesterId]
-  );
-
-  const handleUpdateAnnotation = useCallback(
-    async (id: number, note: string, color: string) => {
-      try {
-        await window.api.cellAnnotation.update(id, { note, color });
-        if (activeSemesterId) {
-          const annotations = await window.api.cellAnnotation.listBySemester(activeSemesterId);
-          setCellAnnotations(annotations);
-        }
-        setEditingCell(null);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '更新备注失败');
-      }
-    },
-    [activeSemesterId]
-  );
-
-  const handleDeleteAnnotation = useCallback(
-    async (id: number) => {
-      try {
-        await window.api.cellAnnotation.delete(id);
-        if (activeSemesterId) {
-          const annotations = await window.api.cellAnnotation.listBySemester(activeSemesterId);
-          setCellAnnotations(annotations);
-        }
-        setEditingCell(null);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '删除备注失败');
-      }
-    },
-    [activeSemesterId]
-  );
-
-  // Smart paste handler
-  const handleSmartPasteConfirm = useCallback(
-    async (result: ImportResult) => {
-      setShowSmartPaste(false);
-      setImportResult(result);
-      setView('import');
-    },
-    []
-  );
-
   const activeSemester = semesters.find((s) => s.id === activeSemesterId);
 
   if (loading) {
@@ -561,13 +436,6 @@ export function App() {
         <h1 className="app-title" onClick={() => setView('home')}>
           NEAU Local Schedule
         </h1>
-        <button
-          className="btn btn-sm dark-mode-toggle"
-          onClick={() => setIsDarkMode(!isDarkMode)}
-          title={isDarkMode ? '切换到亮色模式' : '切换到暗色模式'}
-        >
-          {isDarkMode ? '☀️' : '🌙'}
-        </button>
         {semesters.length > 0 && (
           <SemesterSwitcher
             semesters={semesters}
@@ -583,16 +451,13 @@ export function App() {
             <button className="btn btn-sm" onClick={handleSchoolIndexImport} title="导入从 F12 Network 复制的课表数据">
               导入课表数据
             </button>
-            <button className="btn btn-sm" onClick={() => setShowSmartPaste(true)} title="粘贴文本自动识别考试时间等信息">
-              智能粘贴
-            </button>
             {isLoggedIn ? (
-              <AccountSwitcher
-                activeUsername={savedUsername}
-                onSwitch={handleSwitchAccount}
-                onLogout={handleLogout}
-                onAddAccount={handleAddAccount}
-              />
+              <div className="user-info">
+                <span className="user-name">{savedUsername}</span>
+                <button className="btn btn-sm btn-secondary" onClick={handleLogout}>
+                  退出
+                </button>
+              </div>
             ) : (
               <button className="btn btn-sm btn-primary" onClick={() => setView('login')}>
                 连接学校系统
@@ -646,11 +511,9 @@ export function App() {
             sectionTimes={sectionTimes}
             currentWeek={currentWeek}
             unscheduledCourses={unscheduledCourses}
-            cellAnnotations={cellAnnotations}
             onWeekChange={setCurrentWeek}
             onEventDoubleClick={handleTimetableDoubleClick}
             onCourseDoubleClick={handleCourseDoubleClick}
-            onEmptyCellClick={handleEmptyCellClick}
           />
         ) : view === 'edit' && editingCourse ? (
           <CourseEditor
@@ -690,37 +553,6 @@ export function App() {
           />
         )}
       </Modal>
-
-      {/* Smart Paste Dialog */}
-      {showSmartPaste && (
-        <SmartPasteDialog
-          onConfirm={handleSmartPasteConfirm}
-          onCancel={() => setShowSmartPaste(false)}
-        />
-      )}
-
-      {/* Cell Note Editor */}
-      {editingCell && activeSemesterId && (
-        <CellNoteEditor
-          semesterId={activeSemesterId}
-          weekday={editingCell.weekday}
-          sectionNo={editingCell.sectionNo}
-          currentWeek={currentWeek}
-          existingAnnotation={
-            cellAnnotations.find(
-              (a) =>
-                a.weekday === editingCell.weekday &&
-                a.section_no === editingCell.sectionNo &&
-                a.start_week <= currentWeek &&
-                a.end_week >= currentWeek
-            )
-          }
-          onSave={handleSaveAnnotation}
-          onUpdate={handleUpdateAnnotation}
-          onDelete={handleDeleteAnnotation}
-          onCancel={() => setEditingCell(null)}
-        />
-      )}
     </div>
   );
 }

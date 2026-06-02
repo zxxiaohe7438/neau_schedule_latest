@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
-import { initDatabase, closeDatabase, migrateLegacyDatabase } from '../src/db/connection';
+import { initDatabase, closeDatabase } from '../src/db/connection';
 import { registerSemesterIpc } from './ipc/semesterIpc';
 import { registerSectionTimeIpc } from './ipc/sectionTimeIpc';
 import { registerCourseIpc } from './ipc/courseIpc';
@@ -8,12 +8,7 @@ import { registerCourseEventIpc } from './ipc/courseEventIpc';
 import { registerImportIpc } from './ipc/importIpc';
 import { registerBackupIpc } from './ipc/backupIpc';
 import { registerAuthIpc } from './ipc/authIpc';
-import { registerCellAnnotationIpc } from './ipc/cellAnnotationIpc';
 import { registerDevIpc } from './ipc/devIpc';
-import { getActiveAccount } from '../src/security/credentialStore';
-
-// Disable hardware acceleration to prevent GPU process crashes on some Windows systems
-app.disableHardwareAcceleration();
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -34,8 +29,6 @@ function createWindow(): void {
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools();
-    // Ensure main window keeps focus after DevTools opens
-    mainWindow.focus();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
@@ -46,16 +39,8 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
-  // Check for active account and initialize database accordingly
-  const activeAccount = getActiveAccount();
-  if (activeAccount) {
-    // Migrate legacy database if needed, then initialize with active account
-    migrateLegacyDatabase(activeAccount);
-    await initDatabase(activeAccount);
-  } else {
-    // No active account — initialize with legacy path
-    await initDatabase();
-  }
+  // Initialize SQLite database
+  await initDatabase();
 
   // Register all IPC handlers
   registerSemesterIpc();
@@ -65,7 +50,6 @@ app.whenReady().then(async () => {
   registerImportIpc();
   registerBackupIpc();
   registerAuthIpc();
-  registerCellAnnotationIpc();
 
   // Register dev-only IPC handlers in development mode
   if (process.env.VITE_DEV_SERVER_URL) {

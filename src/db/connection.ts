@@ -6,26 +6,75 @@ import { readFileSync } from 'fs';
 
 let db: SqlJsDatabase | null = null;
 let inTransaction = false;
+let activeUsername: string | null = null;
 
 /**
- * Initialize the SQLite database connection.
- * Creates the data directory and runs schema if needs.
+ * Get the currently active username whose database is open.
  */
-export async function initDatabase(): Promise<SqlJsDatabase> {
-  if (db) return db;
+export function getActiveUsername(): string | null {
+  return activeUsername;
+}
 
-  // Use ASM version (pure JavaScript, no WASM loading needed)
-  const SQL = await initSqlJs();
-
+/**
+ * Get the database path for a given username.
+ * If username is null, returns the legacy path.
+ */
+function getDbPath(username: string | null): string {
   const userDataPath = app.getPath('userData');
   const dataDir = path.join(userDataPath, 'data');
-
-  // Ensure data directory exists
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  if (username) {
+    return path.join(dataDir, username, 'schedule.db');
   }
+  return path.join(dataDir, 'schedule.db');
+}
 
-  const dbPath = path.join(dataDir, 'schedule.db');
+/**
+ * Find the schema.sql file path.
+ */
+function findSchemaPath(): string {
+  const possiblePaths = [
+    path.join(__dirname, '..', '..', 'src', 'db', 'schema.sql'),
+    path.join(__dirname, '..', 'src', 'db', 'schema.sql'),
+    path.join(__dirname, 'schema.sql'),
+    path.join(process.cwd(), 'src', 'db', 'schema.sql'),
+  ];
+  const found = possiblePaths.find(p => fs.existsSync(p));
+  if (!found) {
+    console.error('Searched for schema.sql in:', possiblePaths);
+    throw new Error('Could not find schema.sql file');
+  }
+  return found;
+}
+
+/**
+ * Run schema on the current database.
+ */
+function runSchema(): void {
+  if (!db) return;
+  const schemaPath = findSchemaPath();
+  console.log('Loading schema from:', schemaPath);
+  const schema = readFileSync(schemaPath, 'utf-8');
+  db.run(schema);
+}
+
+/**
+ * Initialize the SQLite database connection for a specific user.
+ * Creates the user's data directory and runs schema if needed.
+ * If username is null, uses the legacy path (for migration).
+ */
+export async function initDatabase(username?: string | null): Promise<SqlJsDatabase> {
+  if (db) return db;
+
+  const SQL = await initSqlJs();
+  activeUsername = username ?? null;
+
+  const dbPath = getDbPath(activeUsername);
+  const dbDir = path.dirname(dbPath);
+
+  // Ensure directory exists
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
 
   // Load existing database or create new one
   if (fs.existsSync(dbPath)) {
@@ -35,37 +84,54 @@ export async function initDatabase(): Promise<SqlJsDatabase> {
     db = new SQL.Database();
   }
 
-  // Enable WAL mode for better concurrent read performance
   db.run('PRAGMA journal_mode = WAL');
   db.run('PRAGMA foreign_keys = ON');
 
-  // Run schema - check multiple possible locations
-  let schemaPath: string;
-
-  // In development, __dirname is dist-electron, so we need to go up to project root
-  // In production, __dirname is the app's resources directory
-  const possiblePaths = [
-    path.join(__dirname, '..', '..', 'src', 'db', 'schema.sql'),  // Development
-    path.join(__dirname, '..', 'src', 'db', 'schema.sql'),        // Alternative dev
-    path.join(__dirname, 'schema.sql'),                            // Production
-    path.join(process.cwd(), 'src', 'db', 'schema.sql'),          // Current working directory
-  ];
-
-  schemaPath = possiblePaths.find(p => fs.existsSync(p)) || '';
-
-  if (!schemaPath) {
-    console.error('Searched for schema.sql in:', possiblePaths);
-    throw new Error('Could not find schema.sql file');
-  }
-
-  console.log('Loading schema from:', schemaPath);
-  const schema = readFileSync(schemaPath, 'utf-8');
-  db.run(schema);
-
-  // Save the database
+  runSchema();
   saveDatabase();
 
   return db;
+}
+
+/**
+ * Switch to a different user's database.
+ * Closes the current database and opens the one for the given username.
+ */
+export async function switchDatabase(username: string): Promise<SqlJsDatabase> {
+  if (db) {
+    saveDatabase();
+    db.close();
+    db = null;
+  }
+  return initDatabase(username);
+}
+
+/**
+ * Migrate legacy database to a user-specific directory.
+ * Moves data/schedule.db to data/{username}/schedule.db.
+ * Returns true if migration was performed.
+ */
+export function migrateLegacyDatabase(username: string): boolean {
+  const legacyPath = getDbPath(null);
+  const newPath = getDbPath(username);
+
+  if (!fs.existsSync(legacyPath)) {
+    return false;
+  }
+
+  // If user-specific DB already exists, don't overwrite
+  if (fs.existsSync(newPath)) {
+    return false;
+  }
+
+  const newDir = path.dirname(newPath);
+  if (!fs.existsSync(newDir)) {
+    fs.mkdirSync(newDir, { recursive: true });
+  }
+
+  fs.renameSync(legacyPath, newPath);
+  console.log(`Migrated legacy database to ${newPath}`);
+  return true;
 }
 
 /**
@@ -74,8 +140,7 @@ export async function initDatabase(): Promise<SqlJsDatabase> {
 function saveDatabase(): void {
   if (!db) return;
 
-  const userDataPath = app.getPath('userData');
-  const dbPath = path.join(userDataPath, 'data', 'schedule.db');
+  const dbPath = getDbPath(activeUsername);
   const data = db.export();
   fs.writeFileSync(dbPath, Buffer.from(data));
 }
@@ -95,6 +160,7 @@ export function closeDatabase(): void {
     saveDatabase();
     db.close();
     db = null;
+    activeUsername = null;
   }
 }
 

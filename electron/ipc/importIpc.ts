@@ -5,6 +5,7 @@ import { importHtml } from '../../src/importers/htmlImporter';
 import { importClipboard } from '../../src/importers/clipboardImporter';
 import { importXlsx } from '../../src/importers/xlsxImporter';
 import { importSchoolIndex } from '../../src/importers/schoolIndexImporter';
+import { recognizeText } from '../../src/importers/textRecognizer';
 import { createSemesterRepo } from '../../src/db/repositories/semesterRepo';
 import { createCourseRepo } from '../../src/db/repositories/courseRepo';
 import { createCourseEventRepo } from '../../src/db/repositories/courseEventRepo';
@@ -86,6 +87,12 @@ export function registerImportIpc(): void {
     if (existingSemester) {
       checkDuplicatesAndConflicts(result, courseEventRepo, existingSemester.id);
     }
+    return result;
+  });
+
+  ipcMain.handle('import:recognizeText', (_event, text: string): ImportResult => {
+    const result = recognizeText(text);
+    checkDuplicatesAndConflicts(result, courseEventRepo);
     return result;
   });
 

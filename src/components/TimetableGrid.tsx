@@ -3,6 +3,7 @@ import type { Course } from '../domain/Course';
 import type { CourseEvent } from '../domain/CourseEvent';
 import type { SectionTime } from '../domain/SectionTime';
 import type { Semester } from '../domain/Semester';
+import type { CellAnnotation } from '../domain/CellAnnotation';
 import {
   WEEKDAY_LABELS,
   getMondayOfWeek,
@@ -18,10 +19,12 @@ interface TimetableGridProps {
   sectionTimes: SectionTime[];
   currentWeek: number;
   unscheduledCourses?: Course[];
+  cellAnnotations?: CellAnnotation[];
   onWeekChange: (week: number) => void;
   onEventClick?: (event: CourseEvent, course: Course) => void;
   onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
   onCourseDoubleClick?: (course: Course) => void;
+  onEmptyCellClick?: (weekday: number, sectionNo: number) => void;
 }
 
 /** Map from course_id to Course for quick lookup */
@@ -68,6 +71,27 @@ function buildGrid(
   return grid;
 }
 
+/**
+ * Build a lookup map for cell annotations keyed by "weekday-sectionNo".
+ */
+function buildAnnotationMap(
+  annotations: CellAnnotation[],
+  currentWeek: number
+): Map<string, CellAnnotation> {
+  const map = new Map<string, CellAnnotation>();
+
+  for (const ann of annotations) {
+    if (currentWeek < ann.start_week || currentWeek > ann.end_week) continue;
+    if (ann.week_pattern === 'odd' && currentWeek % 2 === 0) continue;
+    if (ann.week_pattern === 'even' && currentWeek % 2 !== 0) continue;
+
+    const key = `${ann.weekday}-${ann.section_no}`;
+    map.set(key, ann);
+  }
+
+  return map;
+}
+
 export function TimetableGrid({
   semester,
   courses,
@@ -75,15 +99,21 @@ export function TimetableGrid({
   sectionTimes,
   currentWeek,
   unscheduledCourses = [],
+  cellAnnotations = [],
   onWeekChange,
   onEventClick,
   onEventDoubleClick,
   onCourseDoubleClick,
+  onEmptyCellClick,
 }: TimetableGridProps) {
   const courseMap = useMemo(() => buildCourseMap(courses), [courses]);
   const grid = useMemo(
     () => buildGrid(events, courseMap, currentWeek),
     [events, courseMap, currentWeek]
+  );
+  const annotationMap = useMemo(
+    () => buildAnnotationMap(cellAnnotations, currentWeek),
+    [cellAnnotations, currentWeek]
   );
 
   const weekMonday = useMemo(
@@ -179,8 +209,10 @@ export function TimetableGrid({
                 time={time}
                 grid={grid}
                 coveredCells={coveredCells}
+                annotationMap={annotationMap}
                 onEventClick={onEventClick}
                 onEventDoubleClick={onEventDoubleClick}
+                onEmptyCellClick={onEmptyCellClick}
               />
             );
           })}
@@ -220,15 +252,19 @@ function RowCells({
   time,
   grid,
   coveredCells,
+  annotationMap,
   onEventClick,
   onEventDoubleClick,
+  onEmptyCellClick,
 }: {
   sectionNo: number;
   time: SectionTime | undefined;
   grid: Map<string, GridCell>;
   coveredCells: Set<string>;
+  annotationMap: Map<string, CellAnnotation>;
   onEventClick?: (event: CourseEvent, course: Course) => void;
   onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
+  onEmptyCellClick?: (weekday: number, sectionNo: number) => void;
 }) {
   return (
     <>
@@ -254,8 +290,29 @@ function RowCells({
         }
 
         const cell = grid.get(key);
+        const annotation = annotationMap.get(key);
+
         if (!cell) {
-          return <div key={weekday} className="timetable-cell empty" />;
+          // Empty cell — show annotation if exists, otherwise clickable empty cell
+          if (annotation) {
+            return (
+              <div
+                key={weekday}
+                className="timetable-cell has-annotation"
+                style={{ backgroundColor: annotation.color + '88' }}
+                onClick={() => onEmptyCellClick?.(weekday, sectionNo)}
+              >
+                <div className="annotation-note">{annotation.note}</div>
+              </div>
+            );
+          }
+          return (
+            <div
+              key={weekday}
+              className="timetable-cell empty"
+              onClick={() => onEmptyCellClick?.(weekday, sectionNo)}
+            />
+          );
         }
 
         return (

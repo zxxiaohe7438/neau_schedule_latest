@@ -1,0 +1,114 @@
+现在开始无人值守执行：学校账号登录验证 + callback JSON 课表获取功能。
+
+注意：这是无人值守开发任务。不要等待我输入，不要要求我现场提供真实账号、密码、验证码或真实学校 callback。你需要先离线完成代码框架、mock 测试、UI/IPC 对接和文档。真实学校系统验证等我回来后手动测试。
+
+# 一、开始前必须检查
+
+请先执行：
+
+1. 确认当前目录是：
+
+D:\coding_relative\neau-local-schedule
+
+2. 阅读：
+
+* CLAUDE.md
+* docs/CURRENT_STATUS.md
+* docs/architecture.md
+* docs/import-format.md
+* docs/test-plan.md
+* docs/user-guide.md，如果存在
+* docs/dev-log 下所有日志
+* package.json
+* src/app/App.tsx
+* 当前登录 UI 相关组件
+* src/components/ImportPreview.tsx
+* src/importers/jsonImporter.ts
+* src/importers/normalizer.ts
+* electron/ipc 目录
+* electron/preload.ts
+
+3. 执行：
+
+git status
+git log --oneline -8
+
+4. 总结当前项目状态，不要重复实现已完成功能。
+
+# 二、无人值守硬性规则
+
+必须遵守：
+
+1. 只修改当前项目目录。
+2. 不使用 GitHub。
+3. 不 clone 外部仓库。
+4. 不使用 skill marketplace。
+5. 不打包。
+6. 不做手机端。
+7. 不做无关新功能。
+8. 不访问真实学校系统。
+9. 不真实登录学校账号。
+10. 不保存真实账号密码。
+11. 不保存 cookie。
+12. 不保存 token。
+13. 不把真实 callback response 写入 Git。
+14. 不绕过验证码。
+15. 不爆破登录。
+16. 不批量请求。
+17. 不抓取他人数据。
+18. 不在日志中输出 password。
+19. 不在 console.log 中输出 password。
+20. 不把密码保存到 sql.js 业务数据库。
+21. 不把密码保存到普通 JSON 配置文件。
+22. 不引入云服务、遥测、账号系统。
+23. 不引入 better-sqlite3。
+24. 不引入 sqlite3。
+25. 数据库继续使用 sql.js。
+26. cheerio 必须保持精确版本 1.0.0-rc.12，不允许改成 ^1.0.0-rc.12。
+27. 不要因为真实学校系统无法访问就停住；用 mock 完成开发和测试。
+
+# 三、目标功能
+
+本次完成：
+
+1. 登录 UI 与后端 IPC 对接。
+2. 本地凭据保存模块 credentialStore。
+3. 登录验证服务 schoolAuthService。
+4. mock 登录验证流程。
+5. callback JSON 课表解析器 schoolCallbackImporter。
+6. mock callback JSON fixtures。
+7. callback JSON → timetableJson → ImportPreview 的完整流程。
+8. 课表导入后进入现有本地 sql.js 数据库。
+9. 文档中写清真实测试步骤。
+
+# 四、凭据保存模块
+
+创建或完善：
+
+src/security/credentialStore.ts
+
+要求暴露接口：
+
+* saveCredential(username, password)
+* getCredential()
+* clearCredential()
+* hasCredential()
+
+要求：
+
+1. username 可以普通保存。
+2. password 不允许明文保存。
+3. 优先使用 Electron safeStorage 或系统本地加密能力。
+4. 如果当前环境无法使用 safeStorage，则实现 session-only fallback，并在 UI 和文档中明确提示“当前仅本次会话保存，不落盘”。
+5. 凭据文件必须放在用户本地数据目录，不要放在项目源码目录。
+6. 凭据路径必须加入 .gitignore。
+7. 测试只能使用 mock username/password。
+8. 不要把真实账号密码写进任何 fixture。
+
+# 五、登录验证服务
+
+创建或完善：
+
+src/services/schoolAuthService.ts
+
+或合理的 electron/services 位置。

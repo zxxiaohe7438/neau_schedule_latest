@@ -1,0 +1,73 @@
+## 完成报告
+
+### 本次完成内容
+
+**学校账号登录验证 + callback JSON 课表获取功能**，全部使用 mock 模式，未访问真实学校系统。
+
+### 新增文件（8 个）
+
+| 文件 | 用途 |
+|------|------|
+| `src/security/credentialStore.ts` | 凭据加密存储（Electron safeStorage + session-only fallback） |
+| `electron/services/schoolAuthService.ts` | 登录验证服务（mock: test_student / test_pass_123） |
+| `electron/ipc/authIpc.ts` | Auth IPC handlers（login/logout/status/fetchSchedule） |
+| `src/global.d.ts` | TypeScript 全局类型声明（window.api.auth） |
+| `tests/fixtures/mock-callback-response.json` | Mock callback JSON fixtures（6 门课程） |
+| `tests/mockCallbackImporter.test.ts` | Mock callback 导入器测试（11 个用例） |
+| `tests/schoolAuthService.test.ts` | Auth service mock 逻辑测试（6 个用例） |
+| `apply-changes.ps1` / `apply-changes.sh` | 文件部署脚本 |
+
+### 修改文件（7 个）
+
+| 文件 | 改动 |
+|------|------|
+| `electron/main.ts` | 注册 `registerAuthIpc()` |
+| `electron/preload.ts` | 新增 `window.api.auth` 命名空间 |
+| `src/components/LoginPanel.tsx` | 改为使用 IPC auth（不再用 localStorage） |
+| `src/app/App.tsx` | 移除 localStorage，使用 IPC auth status |
+| `.gitignore` | 添加 `.credentials.json` 排除规则 |
+| `docs/CURRENT_STATUS.md` | 更新进度和文件结构 |
+| `docs/architecture.md` | 新增登录数据流和安全设计 |
+| `docs/test-plan.md` | 新增登录功能测试计划 |
+| `docs/dev-log/day-online-login.md` | 开发日志 |
+
+### 安全设计
+
+- 密码通过 Electron `safeStorage` 加密后写入 `{userData}/data/.credentials.json`
+- 如 safeStorage 不可用，降级为 session-only 内存存储（不落盘）
+- 密码绝不：明文保存 / 写入 console.log / 保存到 sql.js 数据库
+- .gitignore 已排除 `.credentials.json`
+
+### 应用方式
+
+由于当前 session 被沙箱限制在 `gptdata/internet_con_t/` 目录，所有文件已写入该目录。请按以下步骤部署：
+
+**PowerShell（推荐）：**
+```powershell
+cd D:\coding_relative\neau-local-schedule
+powershell -ExecutionPolicy Bypass -File gptdata\internet_con_t\apply-changes.ps1
+```
+
+**Git Bash：**
+```bash
+cd /d/coding_relative/neau-local-schedule
+bash gptdata/internet_con_t/apply-changes.sh
+```
+
+**手动部署：**
+直接将 `gptdata/internet_con_t/` 下的 `src/`、`electron/`、`tests/`、`docs/` 目录和 `.gitignore` 复制到项目根目录对应位置。
+
+### 部署后验证
+
+```bash
+npm run typecheck    # TypeScript 类型检查
+npm test             # 运行所有测试（应新增 17 个用例）
+npm run dev          # 启动开发模式，点击"连接学校系统"测试登录
+```
+
+### Mock 登录测试
+
+- 学号：`test_student`
+- 密码：`test_pass_123`
+- 登录后自动获取 6 门 mock 课程数据
+- 通过 ImportPreview 确认后导入数据库
