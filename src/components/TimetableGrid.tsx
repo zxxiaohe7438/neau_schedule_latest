@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import type { Course } from '../domain/Course';
 import type { CourseEvent } from '../domain/CourseEvent';
 import type { SectionTime } from '../domain/SectionTime';
@@ -12,6 +12,14 @@ import {
   isSameDay,
 } from '../utils/dateUtils';
 
+interface ContextMenu {
+  x: number;
+  y: number;
+  weekday: number;
+  sectionNo: number;
+  annotation?: CellAnnotation;
+}
+
 interface TimetableGridProps {
   semester: Semester;
   courses: Course[];
@@ -24,7 +32,8 @@ interface TimetableGridProps {
   onEventClick?: (event: CourseEvent, course: Course) => void;
   onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
   onCourseDoubleClick?: (course: Course) => void;
-  onEmptyCellClick?: (weekday: number, sectionNo: number) => void;
+  onEmptyCellDoubleClick?: (weekday: number, sectionNo: number) => void;
+  onDeleteAnnotation?: (id: number) => void;
 }
 
 /** Map from course_id to Course for quick lookup */
@@ -104,8 +113,10 @@ export function TimetableGrid({
   onEventClick,
   onEventDoubleClick,
   onCourseDoubleClick,
-  onEmptyCellClick,
+  onEmptyCellDoubleClick,
+  onDeleteAnnotation,
 }: TimetableGridProps) {
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const courseMap = useMemo(() => buildCourseMap(courses), [courses]);
   const grid = useMemo(
     () => buildGrid(events, courseMap, currentWeek),
@@ -115,6 +126,24 @@ export function TimetableGrid({
     () => buildAnnotationMap(cellAnnotations, currentWeek),
     [cellAnnotations, currentWeek]
   );
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, weekday: number, sectionNo: number, annotation?: CellAnnotation) => {
+      e.preventDefault();
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        weekday,
+        sectionNo,
+        annotation,
+      });
+    },
+    []
+  );
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
 
   const weekMonday = useMemo(
     () => getMondayOfWeek(currentWeek, semester.start_date),
@@ -212,7 +241,8 @@ export function TimetableGrid({
                 annotationMap={annotationMap}
                 onEventClick={onEventClick}
                 onEventDoubleClick={onEventDoubleClick}
-                onEmptyCellClick={onEmptyCellClick}
+                onEmptyCellDoubleClick={onEmptyCellDoubleClick}
+                onContextMenu={handleContextMenu}
               />
             );
           })}
@@ -242,6 +272,38 @@ export function TimetableGrid({
           </div>
         )}
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <>
+          <div className="context-menu-overlay" onClick={closeContextMenu} />
+          <div
+            className="context-menu"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                onEmptyCellDoubleClick?.(contextMenu.weekday, contextMenu.sectionNo);
+                closeContextMenu();
+              }}
+            >
+              {contextMenu.annotation ? '编辑备注' : '添加备注'}
+            </button>
+            {contextMenu.annotation && (
+              <button
+                className="context-menu-item danger"
+                onClick={() => {
+                  onDeleteAnnotation?.(contextMenu.annotation!.id);
+                  closeContextMenu();
+                }}
+              >
+                删除备注
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -255,7 +317,8 @@ function RowCells({
   annotationMap,
   onEventClick,
   onEventDoubleClick,
-  onEmptyCellClick,
+  onEmptyCellDoubleClick,
+  onContextMenu,
 }: {
   sectionNo: number;
   time: SectionTime | undefined;
@@ -264,7 +327,8 @@ function RowCells({
   annotationMap: Map<string, CellAnnotation>;
   onEventClick?: (event: CourseEvent, course: Course) => void;
   onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
-  onEmptyCellClick?: (weekday: number, sectionNo: number) => void;
+  onEmptyCellDoubleClick?: (weekday: number, sectionNo: number) => void;
+  onContextMenu?: (e: React.MouseEvent, weekday: number, sectionNo: number, annotation?: CellAnnotation) => void;
 }) {
   return (
     <>
@@ -300,7 +364,8 @@ function RowCells({
                 key={weekday}
                 className="timetable-cell has-annotation"
                 style={{ backgroundColor: annotation.color + '88' }}
-                onClick={() => onEmptyCellClick?.(weekday, sectionNo)}
+                onDoubleClick={() => onEmptyCellDoubleClick?.(weekday, sectionNo)}
+                onContextMenu={(e) => onContextMenu?.(e, weekday, sectionNo, annotation)}
               >
                 <div className="annotation-note">{annotation.note}</div>
               </div>
@@ -310,7 +375,8 @@ function RowCells({
             <div
               key={weekday}
               className="timetable-cell empty"
-              onClick={() => onEmptyCellClick?.(weekday, sectionNo)}
+              onDoubleClick={() => onEmptyCellDoubleClick?.(weekday, sectionNo)}
+              onContextMenu={(e) => onContextMenu?.(e, weekday, sectionNo)}
             />
           );
         }

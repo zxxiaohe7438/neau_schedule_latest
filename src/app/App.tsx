@@ -463,7 +463,7 @@ export function App() {
   );
 
   // Cell annotation handlers
-  const handleEmptyCellClick = useCallback(
+  const handleEmptyCellDoubleClick = useCallback(
     (weekday: number, sectionNo: number) => {
       setEditingCell({ weekday, sectionNo });
     },
@@ -650,7 +650,8 @@ export function App() {
             onWeekChange={setCurrentWeek}
             onEventDoubleClick={handleTimetableDoubleClick}
             onCourseDoubleClick={handleCourseDoubleClick}
-            onEmptyCellClick={handleEmptyCellClick}
+            onEmptyCellDoubleClick={handleEmptyCellDoubleClick}
+            onDeleteAnnotation={handleDeleteAnnotation}
           />
         ) : view === 'edit' && editingCourse ? (
           <CourseEditor
