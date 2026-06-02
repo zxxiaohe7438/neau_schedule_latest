@@ -209,7 +209,7 @@ export function TimetableGrid({
         <div
           className="timetable-grid"
           style={{
-            gridTemplateRows: `48px repeat(${maxSection}, minmax(56px, 1fr))`,
+            gridTemplateRows: `58px repeat(${maxSection}, minmax(56px, 1fr))`,
           }}
         >
           {/* Header row */}
