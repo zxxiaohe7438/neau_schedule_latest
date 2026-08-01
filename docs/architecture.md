@@ -12,8 +12,6 @@
 │  │  - IPC       │◄──►│  - CSS Grid        │  │
 │  │  - File I/O  │    │  - Components      │  │
 │  │  - Importers │    │                    │  │
-│  │  - Auth      │    │                    │  │
-│  │  - SafeStore │    │                    │  │
 │  └─────────────┘    └────────────────────┘  │
 │         ▲                     ▲              │
 │         │    preload.ts       │              │
@@ -26,8 +24,7 @@
 - **domain/** — 纯 TypeScript 类型定义，无依赖
 - **db/** — SQLite schema、连接、repositories（仅 main process）
 - **importers/** — 数据导入解析器（仅 main process）
-- **security/** — 凭据加密存储（仅 main process，使用 Electron safeStorage）
-- **electron/** — Electron 主进程、IPC handlers、services
+- **electron/** — Electron 主进程、IPC handlers
 - **components/** — React UI 组件（仅 renderer）
 - **app/** — React 入口和路由
 
@@ -41,64 +38,45 @@
 4. Repository 操作 SQLite 并返回结果
 5. 结果通过 IPC 返回给 React 组件
 
-### 登录 + 课表获取数据流
+### 导入数据流
 
 ```
-Renderer                 Main Process              School System
-   │                          │                         │
-   │── auth:login ──────────►│                         │
-   │                          │── validate (mock) ──►   │
-   │                          │◄─ result ─────────────  │
-   │                          │── saveCredential()      │
-   │◄─ { success, username }─│                         │
-   │                          │                         │
-   │── auth:fetchSchedule ──►│                         │
-   │                          │── fetchCallbackData() ─►│
-   │                          │◄─ callback JSON ───────│
-   │                          │── importSchoolIndex()   │
-   │◄─ ImportResult ─────────│                         │
-   │                          │                         │
-   │── import:confirm ──────►│                         │
-   │                          │── write to SQLite       │
-   │◄─ done ─────────────────│                         │
+Renderer                 Main Process
+   │                          │
+   │── import:json ─────────►│
+   │                          │── importJson() 解析数据
+   │                          │── checkDuplicatesAndConflicts()
+   │                          │    （source_hash 去重 + updated_manually 冲突检测）
+   │◄─ ImportResult ─────────│
+   │                          │
+   │── import:confirm ──────►│
+   │                          │── 写入 SQLite（学期/课程/课程事件）
+   │◄─ done ─────────────────│
 ```
 
-### 凭据存储流程
+### 备份数据流
 
 ```
-saveCredential(username, password)
-  ├─ safeStorage.isEncryptionAvailable()?
-  │   ├─ YES: safeStorage.encryptString(password)
-  │   │       → write to {userData}/data/.credentials.json
-  │   └─ NO:  store in session memory only
-  │           → return warning "仅本次会话保存"
-  └─ return { ok, warning? }
+Renderer                 Main Process
+   │                          │
+   │── backup:exportTo ─────►│── dialog.showSaveDialog
+   │                          │── 导出学期 JSON 到用户选择位置
+   │── backup:import ───────►│── dialog.showOpenDialog
+   │                          │── 恢复前先 autoBackup
+   │                          │── 校验版本并写入 SQLite
 ```
 
 ## 约束
 
-- 主软件不联网（mock 模式下）
-- 密码不保存到 sql.js 业务数据库
-- 密码使用 Electron safeStorage 加密存储
+- 纯本地运行：不联网、不接云服务、不接账号系统
+- 不保存任何学校账号、密码、cookie、token
 - SQLite 是课表数据的唯一事实来源
 - 手动修改标记 updated_manually
 - 导入不静默覆盖
-- 凭据文件 (.credentials.json) 不在 Git 中
+- 提醒设置与自定义提醒存储在 localStorage（纯本地）
 
-## 安全设计
-
-### 凭据安全
-
-1. 密码通过 Electron safeStorage 加密后写入磁盘
-2. safeStorage 使用操作系统级加密（Windows: DPAPI, macOS: Keychain, Linux: libsecret）
-3. 如果系统不支持，降级为 session-only 内存存储
-4. 凭据文件路径：`{userData}/data/.credentials.json`（不在项目源码目录中）
-5. .gitignore 中已排除 `.credentials.json`
-6. console.log 中绝不输出密码
-
-### 数据隔离
+## 数据存储位置
 
 - 课表数据：SQLite `{userData}/data/schedule.db`
-- 凭据数据：`{userData}/data/.credentials.json`（加密）
-- 备份数据：`{userData}/data/backups/`
-- 所有数据目录在用户本地数据目录，不在项目源码目录
+- 备份数据：`{userData}/data/backups/`（自动）或用户选择位置（手动）
+- 所有数据都在用户本地数据目录，不在项目源码目录

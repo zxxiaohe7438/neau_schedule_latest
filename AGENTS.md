@@ -65,7 +65,7 @@ tools/             — 独立工具（导出器）
 data/              — 数据目录（备份、原始导入）
 docs/              — 文档
 tests/             — 测试和 fixtures
-.claude/skills/    — Claude Code skills
+.Codex/skills/    — Codex skills
 ```
 
 ## 命令行规则

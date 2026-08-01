@@ -1,10 +1,11 @@
 # NEAU Local Schedule - 当前状态
 
-更新日期：2026-06-02
+更新日期：2026-08-01
 
 ## 项目概述
 
 完全本地运行的东北农业大学个人日程安排管理桌面软件。
+**纯本地运行，不联网**：课表数据通过 JSON/HTML/剪贴板/Excel 文件导入，不支持也不包含任何学校官网联网获取功能（该功能已随 2026-08-01 重构移除，如将来需要可重新设计）。
 
 ## 开发进度
 
@@ -13,15 +14,11 @@
 | Day 1 | ✅ 完成 | 项目初始化、数据库层、基础 UI |
 | Day 2 | ✅ 完成 | 课程数据层、TimetableGrid、CourseListView |
 | Day 3 | ✅ 完成 | CourseEditor、双击编辑、JSON 导入预览 |
-| Day 3.5 | ✅ 完成 | 双击编辑持久化验证、updated_manually 验证 |
 | Day 4 | ✅ 完成 | HTML 导入、剪贴板导入、去重、冲突处理 |
-| Day 5 | ⏳ 待做 | Excel/CSV 导入、备份恢复、学期归档 |
-| Day 6 | ⏳ 待做 | 导出器框架、打包、总验收 |
-| Online Login | ✅ 完成 | 学校账号登录 UI、凭据加密存储、mock 登录验证、callback JSON 解析 |
-| Account Binding | ✅ 完成 | 多账号独立数据库、账号切换、数据隔离 |
-| Cell Annotations | ✅ 完成 | 自定义格子备注和颜色 |
-| Smart Paste | ✅ 完成 | 智能粘贴识别考试时间等信息 |
-| UI Improvements | ✅ 完成 | 暗色模式、今日高亮改进 |
+| Day 5 | ✅ 完成 | Excel/CSV 导入、备份恢复、学期归档 |
+| Day 6 | ✅ 完成 | 导出器框架、打包、验收 |
+| UI 迭代 | ✅ 完成 | 格子备注、智能粘贴、暗色模式、右键菜单、提醒系统 |
+| 2026-08-01 重构 | ✅ 完成 | 移除全部联网/登录/账号代码，清理死代码，修复编码问题 |
 
 ## 技术栈
 
@@ -31,7 +28,6 @@
 - **HTML 解析**：cheerio@1.0.0-rc.12
 - **Excel 解析**：xlsx
 - **测试**：vitest
-- **凭据加密**：Electron safeStorage
 
 ## 数据库方案
 
@@ -58,6 +54,7 @@
 - better-sqlite3（需要原生编译）
 - sqlite3（需要原生编译）
 - 任何需要 C++ 编译工具链的依赖
+- 任何联网相关依赖（axios、playwright 等）
 
 ## 已完成功能
 
@@ -89,25 +86,10 @@
 - HTML 导入（基础实现）
 - 剪贴板导入（基础实现）
 - CSV/Excel 导入（完整实现）
+- 智能粘贴（考试时间等文本自动识别）
 - 导入预览
-- 去重检测
+- 去重检测（source_hash）
 - 冲突处理（保留本地/覆盖/跳过）
-
-### 学校系统登录
-
-- 登录 UI（LoginPanel 组件）
-- 凭据加密存储（credentialStore，使用 Electron safeStorage）
-- 登录验证服务（schoolAuthService，当前为 mock 模式）
-- Auth IPC handlers（auth:login, auth:logout, auth:status, auth:fetchSchedule）
-- callback JSON 解析（schoolIndexImporter）
-- Mock callback fixtures（6 门课程，覆盖 all/odd/even 周模式）
-
-### 账号数据绑定
-
-- 多账号独立数据库（每个账号一个 schedule.db）
-- 账号切换 UI（AccountSwitcher 组件）
-- 数据隔离（登录显示该账号数据，退出隐藏）
-- 数据迁移（首次登录自动迁移旧数据库）
 
 ### 自定义格子备注
 
@@ -116,42 +98,34 @@
 - 9 种预设颜色选择
 - 备注按周次和单双周过滤
 
-### 智能粘贴识别
+### 提醒系统
 
-- textRecognizer.ts（解析多种格式的文本）
-- 支持考试时间表、NEAU 官方格式、非正式文本
-- SmartPasteDialog 组件（粘贴预览和确认导入）
-- 时间映射（14:00-16:00 → 第5-6节）
+- 默认提醒：课程/备注上课前 N 分钟提醒（可配置）
+- 自定义提醒：针对具体课程事件设置任意时间提醒
+- 应用内 Toast 弹窗 + 桌面系统通知（Windows AppUserModelID）
+- 提醒设置面板（开关、提前分钟数、通知方式）
+- 提醒数据存 localStorage（纯本地）
 
-### UI 优化
+### 备份恢复
 
-- 暗色模式（CSS 变量切换，localStorage 持久化）
-- 今日高亮改进
-- 标题栏显示当前周次
+- JSON 备份导出（手动选择位置）
+- JSON 备份恢复（恢复前自动备份）
 
 ### 数据保护
 
 - 手动修改标记 updated_manually
 - 重新导入不静默覆盖手动修改
 - source_hash 去重
-- 密码绝不明文保存
-
-### 备份恢复
-
-- JSON 备份导出（自动/手动选择位置）
-- JSON 备份恢复（恢复前自动备份）
 
 ## 测试状态
 
 - TypeScript 类型检查：✅ 通过
-- 单元测试：✅ 60 个测试通过，8 个跳过
-  - JSON 导入器：7 个
-  - HTML 导入器：5 个
+- 单元测试：✅ 全部通过（5 个测试文件，约 38 个用例）
   - 剪贴板导入器：6 个
-  - CSV 导入器：5 个
-  - Mock callback 导入器：11 个
-  - Auth service mock：8 个
-  - 其他测试：18 个
+  - 导出器（tools/neau-timetable-exporter）：16 个
+  - HTML 导入器：5 个
+  - JSON 规范化：6 个
+  - CSV/Excel 导入器：5 个
 
 ## 文件结构
 
@@ -160,54 +134,43 @@ src/
   app/App.tsx              — 主应用组件
   components/
     TimetableGrid.tsx      — 周课表视图
-    CourseListView.tsx      — 课程列表视图
-    CourseEditor.tsx        — 课程编辑器
-    SemesterManager.tsx     — 学期管理
-    SemesterSwitcher.tsx    — 学期切换器
-    ImportPreview.tsx       — 导入预览
-    LoginPanel.tsx          — 登录面板（使用 IPC auth）
-    AccountSwitcher.tsx     — 账号切换器
-    CellNoteEditor.tsx      — 格子备注编辑器
-    SmartPasteDialog.tsx    — 智能粘贴对话框
-    Modal.tsx               — 弹窗组件
+    CourseListView.tsx     — 课程列表视图
+    CourseEditor.tsx       — 课程编辑器
+    SemesterManager.tsx    — 学期管理（含备份/恢复）
+    SemesterSwitcher.tsx   — 学期切换器
+    ImportPreview.tsx      — 导入预览
+    CellNoteEditor.tsx     — 格子备注编辑器
+    SmartPasteDialog.tsx   — 智能粘贴对话框
+    ReminderSettings.tsx   — 提醒设置面板
+    CustomReminderDialog.tsx — 自定义提醒对话框
+    ReminderToast.tsx      — 提醒 Toast 组件
+    Modal.tsx              — 弹窗组件
   db/
-    connection.ts           — sql.js 连接管理（支持多数据库）
-    schema.sql              — 数据库 schema（含 cell_annotations）
-    seed.ts                 — 开发模式种子数据
-    repositories/
-      semesterRepo.ts       — 学期数据访问
-      courseRepo.ts         — 课程数据访问
-      courseEventRepo.ts    — 课程事件数据访问
-      sectionTimeRepo.ts    — 节次时间数据访问
-      cellAnnotationRepo.ts — 格子备注数据访问
+    connection.ts          — sql.js 连接管理
+    schema.sql             — 数据库 schema
+    seed.ts                — 开发模式种子数据
+    repositories/          — 各实体数据访问
   importers/
-    jsonImporter.ts         — JSON 导入
-    htmlImporter.ts         — HTML 导入
-    clipboardImporter.ts    — 剪贴板导入
-    xlsxImporter.ts         — CSV/Excel 导入
-    schoolIndexImporter.ts  — NEAU callback JSON 导入
-    textRecognizer.ts       — 智能文本识别
-    normalizer.ts           — 数据规范化
-  security/
-    credentialStore.ts      — 凭据加密存储（支持多账号）
-  domain/                   — 类型定义
-  utils/                    — 工具函数
+    jsonImporter.ts        — JSON 导入
+    htmlImporter.ts        — HTML 导入
+    clipboardImporter.ts   — 剪贴板导入
+    xlsxImporter.ts        — CSV/Excel 导入
+    textRecognizer.ts      — 智能文本识别
+    normalizer.ts          — 数据规范化
+  domain/                  — 类型定义
+  utils/                   — 工具函数（含 weekday 共享映射）
+  hooks/useReminderScheduler.ts — 提醒调度
+  styles/                  — global.css / reminder.css
 electron/
-  main.ts                   — Electron 主进程
-  preload.ts                — 预加载脚本（含 auth API）
-  ipc/
-    authIpc.ts              — 认证 IPC handlers
-    importIpc.ts            — 导入 IPC handlers
-    cellAnnotationIpc.ts    — 格子备注 IPC handlers
-    ...
-  services/
-    schoolAuthService.ts    — 学校认证服务（mock 模式）
+  main.ts                  — Electron 主进程
+  preload.ts               — 预加载脚本（window.api 定义）
+  ipc/                     — 各模块 IPC handlers
 ```
 
 ## 下一步
 
-1. ✅ 运行 typecheck 和测试验证所有改动（已完成）
-2. 运行 dev 模式确认 UI 正常
-3. 接入真实学校系统（需要用户手动测试）
-4. 配置 electron-builder 打包
-5. 全面测试和验收
+1. 用户运行 `npm run dev` 冒烟验证 UI（本环境无法人工验收 GUI）
+2. 真实数据导入测试（JSON/Excel/剪贴板/智能粘贴）
+3. 提醒功能验证（设置提醒 → 到点触发 Toast/系统通知）
+4. 备份导出/恢复验证
+5. `npm run build` 打包验收
