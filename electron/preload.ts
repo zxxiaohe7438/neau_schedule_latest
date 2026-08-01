@@ -26,33 +26,10 @@ import type {
   CellAnnotationUpdateInput,
 } from '../src/domain/CellAnnotation';
 
-export interface AuthLoginResult {
-  success: boolean;
-  username?: string;
-  error?: string;
-  warning?: string;
-}
-
-export interface AuthStatus {
-  loggedIn: boolean;
-  username: string | null;
-  activeUsername: string | null;
-}
-
 export interface ElectronAPI {
-  // Auth
-  auth: {
-    login: (username: string, password: string) => Promise<AuthLoginResult>;
-    logout: () => Promise<void>;
-    status: () => Promise<AuthStatus>;
-    fetchSchedule: (username: string) => Promise<ImportResult>;
-    listAccounts: () => Promise<string[]>;
-    switchAccount: (username: string) => Promise<{ success: boolean; error?: string }>;
-  };
   // Semester
   semester: {
     list: () => Promise<Semester[]>;
-    getById: (id: number) => Promise<Semester | undefined>;
     create: (input: SemesterCreateInput) => Promise<Semester>;
     update: (id: number, input: SemesterUpdateInput) => Promise<Semester>;
     delete: (id: number) => Promise<void>;
@@ -63,12 +40,10 @@ export interface ElectronAPI {
   sectionTime: {
     listBySemester: (semesterId: number) => Promise<SectionTime[]>;
     upsertBatch: (semesterId: number, times: SectionTimeCreateInput[]) => Promise<SectionTime[]>;
-    initDefaults: (semesterId: number) => Promise<SectionTime[]>;
   };
   // Course
   course: {
     listBySemester: (semesterId: number) => Promise<Course[]>;
-    getById: (id: number) => Promise<Course | undefined>;
     create: (input: CourseCreateInput) => Promise<Course>;
     update: (id: number, input: CourseUpdateInput) => Promise<Course>;
     delete: (id: number) => Promise<void>;
@@ -76,7 +51,6 @@ export interface ElectronAPI {
   // Course Event
   courseEvent: {
     listBySemester: (semesterId: number) => Promise<CourseEvent[]>;
-    listByCourse: (courseId: number) => Promise<CourseEvent[]>;
     getById: (id: number) => Promise<CourseEvent | undefined>;
     create: (input: CourseEventCreateInput) => Promise<CourseEvent>;
     update: (id: number, input: CourseEventUpdateInput) => Promise<CourseEvent>;
@@ -88,13 +62,11 @@ export interface ElectronAPI {
     importHtml: (html: string) => Promise<ImportResult>;
     importClipboard: (text: string) => Promise<ImportResult>;
     importXlsx: (buffer: ArrayBuffer) => Promise<ImportResult>;
-    importSchoolIndex: (content: string) => Promise<ImportResult>;
     importRecognizeText: (text: string) => Promise<ImportResult>;
     confirmImport: (result: ImportResult) => Promise<void>;
   };
   // Backup
   backup: {
-    exportJson: (semesterId: number) => Promise<string>;
     exportTo: (semesterId: number) => Promise<string | null>;
     autoBackup: () => Promise<string>;
     importJson: (data?: BackupData) => Promise<{ success: boolean; message: string }>;
@@ -111,20 +83,15 @@ export interface ElectronAPI {
     update: (id: number, input: CellAnnotationUpdateInput) => Promise<CellAnnotation>;
     delete: (id: number) => Promise<void>;
   };
+  // System Notification
+  notification: {
+    show: (options: { title: string; body: string }) => Promise<void>;
+  };
 }
 
 const api: ElectronAPI = {
-  auth: {
-    login: (username, password) => ipcRenderer.invoke('auth:login', username, password),
-    logout: () => ipcRenderer.invoke('auth:logout'),
-    status: () => ipcRenderer.invoke('auth:status'),
-    fetchSchedule: (username) => ipcRenderer.invoke('auth:fetchSchedule', username),
-    listAccounts: () => ipcRenderer.invoke('auth:listAccounts'),
-    switchAccount: (username) => ipcRenderer.invoke('auth:switchAccount', username),
-  },
   semester: {
     list: () => ipcRenderer.invoke('semester:list'),
-    getById: (id) => ipcRenderer.invoke('semester:getById', id),
     create: (input) => ipcRenderer.invoke('semester:create', input),
     update: (id, input) => ipcRenderer.invoke('semester:update', id, input),
     delete: (id) => ipcRenderer.invoke('semester:delete', id),
@@ -136,13 +103,10 @@ const api: ElectronAPI = {
       ipcRenderer.invoke('sectionTime:listBySemester', semesterId),
     upsertBatch: (semesterId, times) =>
       ipcRenderer.invoke('sectionTime:upsertBatch', semesterId, times),
-    initDefaults: (semesterId) =>
-      ipcRenderer.invoke('sectionTime:initDefaults', semesterId),
   },
   course: {
     listBySemester: (semesterId) =>
       ipcRenderer.invoke('course:listBySemester', semesterId),
-    getById: (id) => ipcRenderer.invoke('course:getById', id),
     create: (input) => ipcRenderer.invoke('course:create', input),
     update: (id, input) => ipcRenderer.invoke('course:update', id, input),
     delete: (id) => ipcRenderer.invoke('course:delete', id),
@@ -150,8 +114,6 @@ const api: ElectronAPI = {
   courseEvent: {
     listBySemester: (semesterId) =>
       ipcRenderer.invoke('courseEvent:listBySemester', semesterId),
-    listByCourse: (courseId) =>
-      ipcRenderer.invoke('courseEvent:listByCourse', courseId),
     getById: (id) => ipcRenderer.invoke('courseEvent:getById', id),
     create: (input) => ipcRenderer.invoke('courseEvent:create', input),
     update: (id, input) => ipcRenderer.invoke('courseEvent:update', id, input),
@@ -162,12 +124,10 @@ const api: ElectronAPI = {
     importHtml: (html) => ipcRenderer.invoke('import:html', html),
     importClipboard: (text) => ipcRenderer.invoke('import:clipboard', text),
     importXlsx: (buffer) => ipcRenderer.invoke('import:xlsx', buffer),
-    importSchoolIndex: (content) => ipcRenderer.invoke('import:schoolIndex', content),
     importRecognizeText: (text) => ipcRenderer.invoke('import:recognizeText', text),
     confirmImport: (result) => ipcRenderer.invoke('import:confirm', result),
   },
   backup: {
-    exportJson: (semesterId) => ipcRenderer.invoke('backup:export', semesterId),
     exportTo: (semesterId) => ipcRenderer.invoke('backup:exportTo', semesterId),
     autoBackup: () => ipcRenderer.invoke('backup:autoBackup'),
     importJson: (data) => ipcRenderer.invoke('backup:import', data),
@@ -182,6 +142,9 @@ const api: ElectronAPI = {
     create: (input) => ipcRenderer.invoke('cellAnnotation:create', input),
     update: (id, input) => ipcRenderer.invoke('cellAnnotation:update', id, input),
     delete: (id) => ipcRenderer.invoke('cellAnnotation:delete', id),
+  },
+  notification: {
+    show: (options) => ipcRenderer.invoke('notification:show', options),
   },
 };
 

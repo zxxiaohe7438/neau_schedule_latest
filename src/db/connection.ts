@@ -2,30 +2,16 @@ import initSqlJs, { type Database as SqlJsDatabase, type BindParams } from 'sql.
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { readFileSync } from 'fs';
 
 let db: SqlJsDatabase | null = null;
 let inTransaction = false;
-let activeUsername: string | null = null;
 
 /**
- * Get the currently active username whose database is open.
+ * Get the database path (single-user, fixed location).
  */
-export function getActiveUsername(): string | null {
-  return activeUsername;
-}
-
-/**
- * Get the database path for a given username.
- * If username is null, returns the legacy path.
- */
-function getDbPath(username: string | null): string {
+function getDbPath(): string {
   const userDataPath = app.getPath('userData');
-  const dataDir = path.join(userDataPath, 'data');
-  if (username) {
-    return path.join(dataDir, username, 'schedule.db');
-  }
-  return path.join(dataDir, 'schedule.db');
+  return path.join(userDataPath, 'data', 'schedule.db');
 }
 
 /**
@@ -53,22 +39,20 @@ function runSchema(): void {
   if (!db) return;
   const schemaPath = findSchemaPath();
   console.log('Loading schema from:', schemaPath);
-  const schema = readFileSync(schemaPath, 'utf-8');
+  const schema = fs.readFileSync(schemaPath, 'utf-8');
   db.run(schema);
 }
 
 /**
- * Initialize the SQLite database connection for a specific user.
- * Creates the user's data directory and runs schema if needed.
- * If username is null, uses the legacy path (for migration).
+ * Initialize the SQLite database connection.
+ * Creates the data directory and runs schema if needed.
  */
-export async function initDatabase(username?: string | null): Promise<SqlJsDatabase> {
+export async function initDatabase(): Promise<SqlJsDatabase> {
   if (db) return db;
 
   const SQL = await initSqlJs();
-  activeUsername = username ?? null;
 
-  const dbPath = getDbPath(activeUsername);
+  const dbPath = getDbPath();
   const dbDir = path.dirname(dbPath);
 
   // Ensure directory exists
@@ -78,7 +62,7 @@ export async function initDatabase(username?: string | null): Promise<SqlJsDatab
 
   // Load existing database or create new one
   if (fs.existsSync(dbPath)) {
-    const fileBuffer = readFileSync(dbPath);
+    const fileBuffer = fs.readFileSync(dbPath);
     db = new SQL.Database(fileBuffer);
   } else {
     db = new SQL.Database();
@@ -94,53 +78,12 @@ export async function initDatabase(username?: string | null): Promise<SqlJsDatab
 }
 
 /**
- * Switch to a different user's database.
- * Closes the current database and opens the one for the given username.
- */
-export async function switchDatabase(username: string): Promise<SqlJsDatabase> {
-  if (db) {
-    saveDatabase();
-    db.close();
-    db = null;
-  }
-  return initDatabase(username);
-}
-
-/**
- * Migrate legacy database to a user-specific directory.
- * Moves data/schedule.db to data/{username}/schedule.db.
- * Returns true if migration was performed.
- */
-export function migrateLegacyDatabase(username: string): boolean {
-  const legacyPath = getDbPath(null);
-  const newPath = getDbPath(username);
-
-  if (!fs.existsSync(legacyPath)) {
-    return false;
-  }
-
-  // If user-specific DB already exists, don't overwrite
-  if (fs.existsSync(newPath)) {
-    return false;
-  }
-
-  const newDir = path.dirname(newPath);
-  if (!fs.existsSync(newDir)) {
-    fs.mkdirSync(newDir, { recursive: true });
-  }
-
-  fs.renameSync(legacyPath, newPath);
-  console.log(`Migrated legacy database to ${newPath}`);
-  return true;
-}
-
-/**
  * Save the database to disk
  */
 function saveDatabase(): void {
   if (!db) return;
 
-  const dbPath = getDbPath(activeUsername);
+  const dbPath = getDbPath();
   const data = db.export();
   fs.writeFileSync(dbPath, Buffer.from(data));
 }
@@ -160,7 +103,6 @@ export function closeDatabase(): void {
     saveDatabase();
     db.close();
     db = null;
-    activeUsername = null;
   }
 }
 

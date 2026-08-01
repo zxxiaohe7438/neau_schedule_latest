@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Semester } from '../domain/Semester';
 import type { Course } from '../domain/Course';
 import type { CourseEvent } from '../domain/CourseEvent';
@@ -11,14 +11,17 @@ import { TimetableGrid } from '../components/TimetableGrid';
 import { CourseListView } from '../components/CourseListView';
 import { CourseEditor } from '../components/CourseEditor';
 import { ImportPreview } from '../components/ImportPreview';
-import { LoginPanel } from '../components/LoginPanel';
-import { AccountSwitcher } from '../components/AccountSwitcher';
 import { CellNoteEditor } from '../components/CellNoteEditor';
 import { SmartPasteDialog } from '../components/SmartPasteDialog';
 import { Modal } from '../components/Modal';
+import { ReminderToast } from '../components/ReminderToast';
+import { ReminderSettingsPanel } from '../components/ReminderSettings';
+import { CustomReminderDialog } from '../components/CustomReminderDialog';
+import { useReminderScheduler } from '../hooks/useReminderScheduler';
+import { getCustomReminders } from '../utils/customReminders';
 import { getWeekNumber } from '../utils/dateUtils';
 
-type View = 'home' | 'timetable' | 'list' | 'import' | 'edit' | 'login';
+type View = 'home' | 'timetable' | 'list' | 'import' | 'edit' | 'settings';
 
 export function App() {
   const [semesters, setSemesters] = useState<Semester[]>([]);
@@ -40,7 +43,6 @@ export function App() {
   // Import state
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const schoolIndexInputRef = useRef<HTMLInputElement>(null);
 
   // Edit state
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
@@ -54,35 +56,25 @@ export function App() {
   // Smart paste state
   const [showSmartPaste, setShowSmartPaste] = useState(false);
 
-  // Login state — uses IPC auth instead of localStorage
-  const [savedUsername, setSavedUsername] = useState<string>('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // Custom reminder dialog state
+  const [reminderDialogEvent, setReminderDialogEvent] = useState<CourseEvent | null>(null);
+  const [reminderDialogCourse, setReminderDialogCourse] = useState<Course | null>(null);
+  // 用于刷新提醒标记
+  const [reminderVersion, setReminderVersion] = useState(0);
+
+  // 计算有提醒的事件 ID 集合
+  const eventIdsWithReminders = useMemo(() => {
+    const reminders = getCustomReminders();
+    return new Set(
+      reminders.filter(r => r.source_type === 'event').map(r => r.source_id)
+    );
+  }, [reminderVersion]);
 
   // Toggle dark mode
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
     localStorage.setItem('darkMode', String(isDarkMode));
   }, [isDarkMode]);
-
-  // Check auth status on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        if (window.api.auth) {
-          const status = await window.api.auth.status();
-          setIsLoggedIn(status.loggedIn);
-          if (status.activeUsername) {
-            setSavedUsername(status.activeUsername);
-          } else if (status.username) {
-            setSavedUsername(status.username);
-          }
-        }
-      } catch {
-        // Auth API not available — stay logged out
-      }
-    };
-    checkAuth();
-  }, []);
 
   const loadSemesters = useCallback(async () => {
     try {
@@ -232,68 +224,37 @@ export function App() {
     []
   );
 
-  // Login handlers — now uses IPC auth
-  const handleLogin = useCallback((username: string) => {
-    setSavedUsername(username);
-    setIsLoggedIn(true);
-    setView('home');
-    // Reload semesters after login (in case schedule was fetched)
-    loadSemesters();
-  }, [loadSemesters]);
-
-  const handleLogout = useCallback(async () => {
+  // Backup handlers
+  const handleExportBackup = useCallback(async (semesterId: number) => {
     try {
-      if (window.api.auth) {
-        await window.api.auth.logout();
+      const filePath = await window.api.backup.exportTo(semesterId);
+      if (filePath) {
+        alert(`备份已导出到：\n${filePath}`);
       }
-    } catch {
-      // Ignore
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '导出备份失败');
     }
-    setIsLoggedIn(false);
-    setSavedUsername('');
-    setSemesters([]);
-    setActiveSemesterId(null);
-    setCourses([]);
-    setEvents([]);
-    setSectionTimes([]);
-    setUnscheduledCourses([]);
-    setCellAnnotations([]);
-    setView('home');
   }, []);
 
-  const handleSwitchAccount = useCallback(async (username: string) => {
+  const handleRestoreBackup = useCallback(async () => {
     try {
-      const result = await window.api.auth.switchAccount(username);
+      // 恢复前自动备份当前数据
+      await window.api.backup.autoBackup();
+      const result = await window.api.backup.importJson();
       if (result.success) {
-        setSavedUsername(username);
-        // Reload all data for the new account
-        const list = await window.api.semester.list();
-        setSemesters(list);
-        const active = list.find((s) => !s.is_archived);
-        if (active) {
-          setActiveSemesterId(active.id);
-          setView('timetable');
-        } else {
-          setActiveSemesterId(null);
-          setView('home');
-        }
+        alert(result.message);
+        await loadSemesters();
+      } else {
+        alert(result.message);
       }
-    } catch {
-      // Ignore
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '恢复备份失败');
     }
-  }, []);
-
-  const handleAddAccount = useCallback(() => {
-    setView('login');
-  }, []);
+  }, [loadSemesters]);
 
   // Import handlers
   const handleImportClick = useCallback(() => {
     fileInputRef.current?.click();
-  }, []);
-
-  const handleSchoolIndexImport = useCallback(() => {
-    schoolIndexInputRef.current?.click();
   }, []);
 
   const handleFileChange = useCallback(
@@ -314,35 +275,6 @@ export function App() {
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
-      }
-    },
-    []
-  );
-
-  const handleSchoolIndexFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      try {
-        const text = await file.text();
-        console.log('Importing school index...');
-        const result = await window.api.import.importSchoolIndex(text);
-        console.log('Import result:', result);
-        if (result.courses.length === 0 && (!result.unscheduled_courses || result.unscheduled_courses.length === 0)) {
-          alert('未能从文件中解析出课程数据。\n\n请确保文件是从 F12 Network 中复制的 ajaxStudentSchedule/callback 响应。');
-          return;
-        }
-        setImportResult(result);
-        setView('import');
-      } catch (err) {
-        console.error('Import error:', err);
-        alert(err instanceof Error ? err.message : '导入失败');
-      }
-
-      // Reset file input
-      if (schoolIndexInputRef.current) {
-        schoolIndexInputRef.current.value = '';
       }
     },
     []
@@ -471,16 +403,18 @@ export function App() {
   );
 
   const handleSaveAnnotation = useCallback(
-    async (input: CellAnnotationCreateInput) => {
+    async (input: CellAnnotationCreateInput): Promise<number | null> => {
       try {
-        await window.api.cellAnnotation.create(input);
+        const created = await window.api.cellAnnotation.create(input);
         if (activeSemesterId) {
           const annotations = await window.api.cellAnnotation.listBySemester(activeSemesterId);
           setCellAnnotations(annotations);
         }
         setEditingCell(null);
+        return created?.id ?? null;
       } catch (err) {
         alert(err instanceof Error ? err.message : '保存备注失败');
+        return null;
       }
     },
     [activeSemesterId]
@@ -528,7 +462,26 @@ export function App() {
     []
   );
 
+  // Custom reminder handler
+  const handleSetReminder = useCallback(
+    (event: CourseEvent, course: Course) => {
+      setReminderDialogEvent(event);
+      setReminderDialogCourse(course);
+    },
+    []
+  );
+
   const activeSemester = semesters.find((s) => s.id === activeSemesterId);
+
+  // 提醒调度
+  const { toasts, dismissToast, addTestToast } = useReminderScheduler({
+    semesters,
+    activeSemesterId,
+    courses,
+    events,
+    sectionTimes,
+    cellAnnotations,
+  });
 
   if (loading) {
     return (
@@ -548,13 +501,6 @@ export function App() {
         accept=".json"
         style={{ display: 'none' }}
         onChange={handleFileChange}
-      />
-      <input
-        ref={schoolIndexInputRef}
-        type="file"
-        accept=".json,.txt"
-        style={{ display: 'none' }}
-        onChange={handleSchoolIndexFileChange}
       />
 
       <header className="app-header">
@@ -577,27 +523,19 @@ export function App() {
         )}
         {view !== 'import' && (
           <div className="header-actions">
+            <button
+              className="btn btn-sm"
+              onClick={() => setView('settings')}
+              title="设置提醒"
+            >
+              ⚙️
+            </button>
             <button className="btn btn-sm" onClick={handleImportClick}>
               导入 JSON
-            </button>
-            <button className="btn btn-sm" onClick={handleSchoolIndexImport} title="导入从 F12 Network 复制的课表数据">
-              导入课表数据
             </button>
             <button className="btn btn-sm" onClick={() => setShowSmartPaste(true)} title="粘贴文本自动识别考试时间等信息">
               智能粘贴
             </button>
-            {isLoggedIn ? (
-              <AccountSwitcher
-                activeUsername={savedUsername}
-                onSwitch={handleSwitchAccount}
-                onLogout={handleLogout}
-                onAddAccount={handleAddAccount}
-              />
-            ) : (
-              <button className="btn btn-sm btn-primary" onClick={() => setView('login')}>
-                连接学校系统
-              </button>
-            )}
           </div>
         )}
         {view !== 'home' && view !== 'import' && activeSemesterId && (
@@ -618,11 +556,10 @@ export function App() {
         )}
       </header>
       <main className="app-main">
-        {view === 'login' ? (
-          <LoginPanel
-            savedUsername={savedUsername}
-            onLogin={handleLogin}
-            onCancel={() => setView('home')}
+        {view === 'settings' ? (
+          <ReminderSettingsPanel
+            onBack={() => setView(activeSemesterId ? 'timetable' : 'home')}
+            onTestToast={addTestToast}
           />
         ) : view === 'import' && importResult ? (
           <ImportPreview
@@ -637,6 +574,8 @@ export function App() {
             onDeleted={handleSemesterDeleted}
             onSeedMockData={window.api.dev ? handleSeedMockData : undefined}
             onClearAllData={window.api.dev ? handleClearAllData : undefined}
+            onExportBackup={handleExportBackup}
+            onRestoreBackup={handleRestoreBackup}
           />
         ) : view === 'timetable' && activeSemester ? (
           <TimetableGrid
@@ -647,11 +586,13 @@ export function App() {
             currentWeek={currentWeek}
             unscheduledCourses={unscheduledCourses}
             cellAnnotations={cellAnnotations}
+            eventIdsWithReminders={eventIdsWithReminders}
             onWeekChange={setCurrentWeek}
             onEventDoubleClick={handleTimetableDoubleClick}
             onCourseDoubleClick={handleCourseDoubleClick}
             onEmptyCellDoubleClick={handleEmptyCellDoubleClick}
             onDeleteAnnotation={handleDeleteAnnotation}
+            onSetReminder={handleSetReminder}
           />
         ) : view === 'edit' && editingCourse ? (
           <CourseEditor
@@ -701,7 +642,7 @@ export function App() {
       )}
 
       {/* Cell Note Editor */}
-      {editingCell && activeSemesterId && (
+      {editingCell && activeSemesterId && activeSemester && (
         <CellNoteEditor
           semesterId={activeSemesterId}
           weekday={editingCell.weekday}
@@ -716,12 +657,47 @@ export function App() {
                 a.end_week >= currentWeek
             )
           }
+          semester={activeSemester}
+          sectionTimes={sectionTimes}
           onSave={handleSaveAnnotation}
           onUpdate={handleUpdateAnnotation}
           onDelete={handleDeleteAnnotation}
           onCancel={() => setEditingCell(null)}
         />
       )}
+
+      {/* Custom Reminder Dialog */}
+      {reminderDialogEvent && reminderDialogCourse && activeSemester && (
+        <Modal
+          isOpen={true}
+          onClose={() => {
+            setReminderDialogEvent(null);
+            setReminderDialogCourse(null);
+          }}
+          title="设置提醒"
+        >
+          <CustomReminderDialog
+            sourceType="event"
+            course={reminderDialogCourse}
+            event={reminderDialogEvent}
+            semester={activeSemester}
+            currentWeek={currentWeek}
+            sectionTimes={sectionTimes}
+            onConfirm={() => {
+              setReminderDialogEvent(null);
+              setReminderDialogCourse(null);
+              setReminderVersion(v => v + 1);
+            }}
+            onCancel={() => {
+              setReminderDialogEvent(null);
+              setReminderDialogCourse(null);
+            }}
+          />
+        </Modal>
+      )}
+
+      {/* Reminder Toast Notifications */}
+      <ReminderToast toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

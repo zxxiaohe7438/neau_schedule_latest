@@ -4,7 +4,6 @@ import { importJson } from '../../src/importers/jsonImporter';
 import { importHtml } from '../../src/importers/htmlImporter';
 import { importClipboard } from '../../src/importers/clipboardImporter';
 import { importXlsx } from '../../src/importers/xlsxImporter';
-import { importSchoolIndex } from '../../src/importers/schoolIndexImporter';
 import { recognizeText } from '../../src/importers/textRecognizer';
 import { createSemesterRepo } from '../../src/db/repositories/semesterRepo';
 import { createCourseRepo } from '../../src/db/repositories/courseRepo';
@@ -76,17 +75,6 @@ export function registerImportIpc(): void {
   ipcMain.handle('import:xlsx', (_event, buffer: ArrayBuffer): ImportResult => {
     const result = importXlsx(buffer);
     checkDuplicatesAndConflicts(result, courseEventRepo);
-    return result;
-  });
-
-  ipcMain.handle('import:schoolIndex', (_event, content: string): ImportResult => {
-    const result = importSchoolIndex(content);
-    // Find existing semester to check for duplicates within that semester
-    const existingSemester = semesterRepo.list().find(s => s.name === result.semester.name);
-    // Only check duplicates if semester exists (otherwise no data in database)
-    if (existingSemester) {
-      checkDuplicatesAndConflicts(result, courseEventRepo, existingSemester.id);
-    }
     return result;
   });
 
