@@ -8,9 +8,10 @@ interface Props {
   onSeedMockData?: () => void;
   onClearAllData?: () => void;
   onExportBackup?: (semesterId: number) => void;
+  onRestoreBackup?: () => void;
 }
 
-export function SemesterManager({ semesters, onCreated, onDeleted, onSeedMockData, onClearAllData, onExportBackup }: Props) {
+export function SemesterManager({ semesters, onCreated, onDeleted, onSeedMockData, onClearAllData, onExportBackup, onRestoreBackup }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<SemesterCreateInput>({
     name: '',
@@ -100,6 +101,11 @@ export function SemesterManager({ semesters, onCreated, onDeleted, onSeedMockDat
           {onSeedMockData && (
             <button className="btn btn-secondary" onClick={onSeedMockData}>
               加载测试数据
+            </button>
+          )}
+          {onRestoreBackup && (
+            <button className="btn btn-secondary" onClick={onRestoreBackup} title="从备份文件恢复学期数据">
+              恢复备份
             </button>
           )}
           <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>

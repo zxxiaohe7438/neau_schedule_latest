@@ -12,7 +12,6 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "exporter:from-html": "npx tsx tools/neau-timetable-exporter/cli.ts",
-    "exporter:browser": "echo \"Playwright 未安装，请先运行: npm install playwright\" ",
     "exporter:test": "vitest run tests/exporter.test.ts"
   },
   "dependencies": {

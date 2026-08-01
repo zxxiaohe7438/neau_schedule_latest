@@ -29,28 +29,3 @@ export function getCourseColor(courseName: string): string {
   const index = hash % COURSE_COLORS.length;
   return COURSE_COLORS[index];
 }
-
-/**
- * Get a color that is not already used in the given set.
- * Falls back to hash-based assignment if all colors are used.
- */
-export function getAvailableColor(
-  courseName: string,
-  usedColors: Set<string>
-): string {
-  // First try hash-based assignment
-  const hashColor = getCourseColor(courseName);
-  if (!usedColors.has(hashColor)) {
-    return hashColor;
-  }
-
-  // If hash color is used, find first available color
-  for (const color of COURSE_COLORS) {
-    if (!usedColors.has(color)) {
-      return color;
-    }
-  }
-
-  // All colors used, fall back to hash-based assignment
-  return hashColor;
-}

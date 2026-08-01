@@ -53,16 +53,6 @@ CREATE TABLE IF NOT EXISTS course_events (
   CHECK(start_week <= end_week)
 );
 
-CREATE TABLE IF NOT EXISTS import_batches (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  semester_id INTEGER NOT NULL,
-  source_type TEXT NOT NULL,         -- 'json' | 'html' | 'clipboard' | 'xlsx' | 'csv'
-  imported_at TEXT NOT NULL DEFAULT (datetime('now')),
-  raw_snapshot_path TEXT,
-  result_summary TEXT,
-  FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE CASCADE
-);
-
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_section_times_semester ON section_times(semester_id);
 CREATE INDEX IF NOT EXISTS idx_courses_semester ON courses(semester_id);

@@ -60,8 +60,6 @@ export function createSemesterRepo() {
       execute('DELETE FROM courses WHERE semester_id = ?', [id]);
       // Delete section times
       execute('DELETE FROM section_times WHERE semester_id = ?', [id]);
-      // Delete import batches
-      execute('DELETE FROM import_batches WHERE semester_id = ?', [id]);
       // Finally delete semester
       execute('DELETE FROM semesters WHERE id = ?', [id]);
     },

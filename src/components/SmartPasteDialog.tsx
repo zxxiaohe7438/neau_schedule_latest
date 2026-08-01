@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { ImportResult } from '../domain/ImportResult';
 
 interface SmartPasteDialogProps {
@@ -10,6 +10,7 @@ export function SmartPasteDialog({ onConfirm, onCancel }: SmartPasteDialogProps)
   const [text, setText] = useState('');
   const [result, setResult] = useState<ImportResult | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
+  const isMouseDownInside = useRef(false);
 
   const handleRecognize = async () => {
     if (!text.trim()) return;
@@ -33,9 +34,20 @@ export function SmartPasteDialog({ onConfirm, onCancel }: SmartPasteDialogProps)
 
   const weekdayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const dialog = (e.currentTarget as HTMLElement).querySelector('.smart-paste-dialog');
+    isMouseDownInside.current = dialog?.contains(e.target as Node) ?? false;
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget && !isMouseDownInside.current) {
+      onCancel();
+    }
+  };
+
   return (
-    <div className="smart-paste-overlay" onClick={onCancel}>
-      <div className="smart-paste-dialog" onClick={(e) => e.stopPropagation()}>
+    <div className="smart-paste-overlay" onMouseDown={handleMouseDown} onClick={handleOverlayClick}>
+      <div className="smart-paste-dialog">
         <div className="smart-paste-header">
           <h3>智能粘贴</h3>
           <p className="text-muted">粘贴包含考试时间、课程信息的文本，自动识别并导入</p>

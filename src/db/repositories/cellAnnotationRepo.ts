@@ -14,22 +14,6 @@ export function createCellAnnotationRepo() {
       );
     },
 
-    findByCell(
-      semesterId: number,
-      weekday: number,
-      sectionNo: number,
-      week: number,
-      weekPattern: string
-    ): CellAnnotation | undefined {
-      return queryOne<CellAnnotation>(
-        `SELECT * FROM cell_annotations
-         WHERE semester_id = ? AND weekday = ? AND section_no = ?
-         AND start_week <= ? AND end_week >= ?
-         AND (week_pattern = 'all' OR week_pattern = ?)`,
-        [semesterId, weekday, sectionNo, week, week, weekPattern]
-      );
-    },
-
     create(input: CellAnnotationCreateInput): CellAnnotation {
       const result = execute(
         `INSERT INTO cell_annotations

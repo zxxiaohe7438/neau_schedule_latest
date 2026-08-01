@@ -9,7 +9,9 @@
   --color-surface: #ffffff;
   --color-text: #1e293b;
   --color-text-muted: #64748b;
+  --color-text-secondary: #64748b;
   --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
 
   /* 语义色 */
   --color-danger: #ef4444;
@@ -20,6 +22,7 @@
 
   /* 圆角 */
   --radius-sm: 6px;
+  --radius-md: 8px;
   --radius: 10px;
   --radius-lg: 14px;
   --radius-xl: 20px;
@@ -47,7 +50,9 @@
   --color-surface: #1e293b;
   --color-text: #f1f5f9;
   --color-text-muted: #94a3b8;
+  --color-text-secondary: #94a3b8;
   --color-border: #334155;
+  --color-border-light: #334155;
 
   --color-danger: #f87171;
   --color-danger-hover: #ef4444;
@@ -149,6 +154,10 @@ body {
 }
 
 .semester-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
   font-size: 13px;
   color: var(--color-text-muted);
 }
@@ -315,25 +324,10 @@ body {
   gap: 8px;
 }
 
-.badge {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 11px;
-  background: var(--color-text-muted);
-  color: white;
-  margin-left: 8px;
-}
-
 .empty-state {
   text-align: center;
   padding: 48px 24px;
   color: var(--color-text-muted);
-}
-
-.text-muted {
-  color: var(--color-text-muted);
-  font-size: 13px;
 }
 
 /* View Tabs */
@@ -495,6 +489,11 @@ body {
 
 .timetable-cell.empty {
   background: var(--color-surface);
+  cursor: pointer;
+}
+
+.timetable-cell.empty:hover {
+  background: var(--color-bg);
 }
 
 .timetable-cell.has-course {
@@ -936,13 +935,6 @@ body {
   color: #e8a838;
 }
 
-.semester-info {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
 .info-label {
   font-size: 13px;
   color: var(--color-text-muted);
@@ -1109,225 +1101,6 @@ body {
   font-size: 13px;
 }
 
-/* User Info */
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.user-name {
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-
-/* Login Panel */
-.login-panel {
-  max-width: 400px;
-  margin: 40px auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.login-header {
-  background: var(--color-bg);
-  padding: 20px;
-  text-align: center;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.login-header h3 {
-  font-size: 18px;
-  margin-bottom: 4px;
-}
-
-.login-form {
-  padding: 20px;
-}
-
-.login-info {
-  margin-top: 16px;
-  padding: 12px;
-  background: var(--color-bg);
-  border-radius: var(--radius);
-}
-
-.login-info h4 {
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-
-.login-info ul {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  padding-left: 20px;
-}
-
-.login-info li {
-  margin-bottom: 4px;
-}
-
-.login-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
-}
-
-/* Account Switcher */
-.account-switcher {
-  position: relative;
-}
-
-.account-switcher-trigger {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 14px 6px 6px;
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.account-switcher-trigger:hover {
-  background: var(--color-bg);
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-xs);
-}
-
-.account-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.account-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-.account-arrow {
-  font-size: 10px;
-  color: var(--color-text-muted);
-  margin-left: 4px;
-}
-
-.account-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 220px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  z-index: 200;
-  overflow: hidden;
-  padding: 4px;
-  animation: slideDown var(--transition);
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.account-dropdown-header {
-  padding: 8px 12px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.account-dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 14px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--color-text);
-  transition: all var(--transition-fast);
-  text-align: left;
-  border-radius: var(--radius-sm);
-}
-
-.account-dropdown-item:hover {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.account-dropdown-item.active {
-  background: var(--color-primary-light);
-  font-weight: 600;
-  color: var(--color-primary);
-}
-
-.account-dropdown-item.danger {
-  color: var(--color-danger);
-}
-
-.account-dropdown-item.danger:hover {
-  background: rgba(239, 68, 68, 0.1);
-}
-
-.account-avatar-small {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.account-check {
-  margin-left: auto;
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.account-icon {
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-}
-
-.account-dropdown-divider {
-  height: 1px;
-  background: var(--color-border);
-  margin: 4px 0;
-}
-
 /* Cell Annotations */
 .timetable-cell.has-annotation {
   cursor: pointer;
@@ -1353,14 +1126,6 @@ body {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
-}
-
-.timetable-cell.empty {
-  cursor: pointer;
-}
-
-.timetable-cell.empty:hover {
-  background: var(--color-bg);
 }
 
 /* Cell Note Editor */
@@ -1575,27 +1340,6 @@ body {
   font-size: 16px;
   padding: 4px 8px;
   line-height: 1;
-}
-
-/* Today column highlight */
-.timetable-cell.today-column {
-  background: rgba(74, 144, 217, 0.05);
-}
-
-/* Jump to Today button */
-.jump-to-today {
-  position: relative;
-}
-
-.jump-to-today .badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-danger);
-  padding: 0;
 }
 
 /* Context Menu */

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import type { Course } from '../domain/Course';
 import type { CourseEvent } from '../domain/CourseEvent';
 import type { SectionTime } from '../domain/SectionTime';
@@ -18,6 +18,8 @@ interface ContextMenu {
   weekday: number;
   sectionNo: number;
   annotation?: CellAnnotation;
+  event?: CourseEvent;
+  course?: Course;
 }
 
 interface TimetableGridProps {
@@ -28,12 +30,14 @@ interface TimetableGridProps {
   currentWeek: number;
   unscheduledCourses?: Course[];
   cellAnnotations?: CellAnnotation[];
+  eventIdsWithReminders?: Set<number>;
   onWeekChange: (week: number) => void;
   onEventClick?: (event: CourseEvent, course: Course) => void;
   onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
   onCourseDoubleClick?: (course: Course) => void;
   onEmptyCellDoubleClick?: (weekday: number, sectionNo: number) => void;
   onDeleteAnnotation?: (id: number) => void;
+  onSetReminder?: (event: CourseEvent, course: Course) => void;
 }
 
 /** Map from course_id to Course for quick lookup */
@@ -109,14 +113,17 @@ export function TimetableGrid({
   currentWeek,
   unscheduledCourses = [],
   cellAnnotations = [],
+  eventIdsWithReminders,
   onWeekChange,
   onEventClick,
   onEventDoubleClick,
   onCourseDoubleClick,
   onEmptyCellDoubleClick,
   onDeleteAnnotation,
+  onSetReminder,
 }: TimetableGridProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
+  const isMouseDownInsideMenu = useRef(false);
   const courseMap = useMemo(() => buildCourseMap(courses), [courses]);
   const grid = useMemo(
     () => buildGrid(events, courseMap, currentWeek),
@@ -128,7 +135,7 @@ export function TimetableGrid({
   );
 
   const handleContextMenu = useCallback(
-    (e: React.MouseEvent, weekday: number, sectionNo: number, annotation?: CellAnnotation) => {
+    (e: React.MouseEvent, weekday: number, sectionNo: number, annotation?: CellAnnotation, event?: CourseEvent, course?: Course) => {
       e.preventDefault();
       setContextMenu({
         x: e.clientX,
@@ -136,6 +143,8 @@ export function TimetableGrid({
         weekday,
         sectionNo,
         annotation,
+        event,
+        course,
       });
     },
     []
@@ -239,6 +248,7 @@ export function TimetableGrid({
                 grid={grid}
                 coveredCells={coveredCells}
                 annotationMap={annotationMap}
+                eventIdsWithReminders={eventIdsWithReminders}
                 onEventClick={onEventClick}
                 onEventDoubleClick={onEventDoubleClick}
                 onEmptyCellDoubleClick={onEmptyCellDoubleClick}
@@ -276,30 +286,69 @@ export function TimetableGrid({
       {/* Context Menu */}
       {contextMenu && (
         <>
-          <div className="context-menu-overlay" onClick={closeContextMenu} />
+          <div
+            className="context-menu-overlay"
+            onMouseDown={(e) => {
+              const menu = (e.currentTarget as HTMLElement).nextElementSibling;
+              isMouseDownInsideMenu.current = menu?.contains(e.target as Node) ?? false;
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isMouseDownInsideMenu.current) {
+                closeContextMenu();
+              }
+            }}
+          />
           <div
             className="context-menu"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
-            <button
-              className="context-menu-item"
-              onClick={() => {
-                onEmptyCellDoubleClick?.(contextMenu.weekday, contextMenu.sectionNo);
-                closeContextMenu();
-              }}
-            >
-              {contextMenu.annotation ? '编辑备注' : '添加备注'}
-            </button>
-            {contextMenu.annotation && (
-              <button
-                className="context-menu-item danger"
-                onClick={() => {
-                  onDeleteAnnotation?.(contextMenu.annotation!.id);
-                  closeContextMenu();
-                }}
-              >
-                删除备注
-              </button>
+            {/* 课程格子的右键菜单 */}
+            {contextMenu.event && contextMenu.course && (
+              <>
+                <button
+                  className="context-menu-item"
+                  onClick={() => {
+                    onEventDoubleClick?.(contextMenu.event!, contextMenu.course!);
+                    closeContextMenu();
+                  }}
+                >
+                  编辑课程
+                </button>
+                <button
+                  className="context-menu-item"
+                  onClick={() => {
+                    onSetReminder?.(contextMenu.event!, contextMenu.course!);
+                    closeContextMenu();
+                  }}
+                >
+                  🔔 设置提醒
+                </button>
+              </>
+            )}
+            {/* 空格子的右键菜单 */}
+            {!contextMenu.event && (
+              <>
+                <button
+                  className="context-menu-item"
+                  onClick={() => {
+                    onEmptyCellDoubleClick?.(contextMenu.weekday, contextMenu.sectionNo);
+                    closeContextMenu();
+                  }}
+                >
+                  {contextMenu.annotation ? '编辑备注' : '添加备注'}
+                </button>
+                {contextMenu.annotation && (
+                  <button
+                    className="context-menu-item danger"
+                    onClick={() => {
+                      onDeleteAnnotation?.(contextMenu.annotation!.id);
+                      closeContextMenu();
+                    }}
+                  >
+                    删除备注
+                  </button>
+                )}
+              </>
             )}
           </div>
         </>
@@ -315,6 +364,7 @@ function RowCells({
   grid,
   coveredCells,
   annotationMap,
+  eventIdsWithReminders,
   onEventClick,
   onEventDoubleClick,
   onEmptyCellDoubleClick,
@@ -325,10 +375,11 @@ function RowCells({
   grid: Map<string, GridCell>;
   coveredCells: Set<string>;
   annotationMap: Map<string, CellAnnotation>;
+  eventIdsWithReminders?: Set<number>;
   onEventClick?: (event: CourseEvent, course: Course) => void;
   onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
   onEmptyCellDoubleClick?: (weekday: number, sectionNo: number) => void;
-  onContextMenu?: (e: React.MouseEvent, weekday: number, sectionNo: number, annotation?: CellAnnotation) => void;
+  onContextMenu?: (e: React.MouseEvent, weekday: number, sectionNo: number, annotation?: CellAnnotation, event?: CourseEvent, course?: Course) => void;
 }) {
   return (
     <>
@@ -392,6 +443,7 @@ function RowCells({
             }}
             onClick={() => onEventClick?.(cell.event, cell.course)}
             onDoubleClick={() => onEventDoubleClick?.(cell.event, cell.course)}
+            onContextMenu={(e) => onContextMenu?.(e, weekday, sectionNo, undefined, cell.event, cell.course)}
           >
             <div
               className="course-name"
@@ -405,6 +457,9 @@ function RowCells({
               <div className="course-note" title={cell.event.note}>
                 📝 {cell.event.note}
               </div>
+            )}
+            {eventIdsWithReminders?.has(cell.event.id) && (
+              <div className="course-reminder-badge" title="已设置提醒">🔔</div>
             )}
             {cell.event.week_pattern !== 'all' && (
               <div className="course-week-pattern">
