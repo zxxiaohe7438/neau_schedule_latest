@@ -4,22 +4,14 @@
  */
 
 import type { ImportResult, ImportCourseItem, ImportError } from '../domain/ImportResult';
-import type { WeekPattern } from '../domain/CourseEvent';
-import { computeSourceHash } from './normalizer';
 import { WEEKDAY_MAP } from '../utils/weekday';
-
-interface ParsedLine {
-  courseName: string;
-  teacher: string;
-  location: string;
-  weekday: number;
-  startSection: number;
-  endSection: number;
-  startWeek: number;
-  endWeek: number;
-  weekPattern: WeekPattern;
-  rawText: string;
-}
+import {
+  parseSectionRange,
+  parseWeekRange,
+  buildImportItem,
+  emptyImportResult,
+  type ParsedCourseData,
+} from './common';
 
 /**
  * Parse a single line of course text.
@@ -27,7 +19,7 @@ interface ParsedLine {
  * Example: "数据库原理与应用 张老师 成栋楼A101 周一 1-2节 1-16周"
  * Example: "大学英语 李老师 成栋楼B202 周三 3-4节 1-16周 双周"
  */
-function parseLine(line: string): ParsedLine | null {
+function parseLine(line: string): ParsedCourseData | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
 
@@ -46,20 +38,12 @@ function parseLine(line: string): ParsedLine | null {
   const afterWeekday = trimmed.substring(weekdayIndex + weekdayMatch[0].length).trim();
 
   // Parse section: "1-2节"
-  const sectionMatch = afterWeekday.match(/(\d+)-(\d+)节/);
-  if (!sectionMatch) return null;
-
-  const startSection = parseInt(sectionMatch[1], 10);
-  const endSection = parseInt(sectionMatch[2], 10);
+  const sectionRange = parseSectionRange(afterWeekday);
+  if (!sectionRange) return null;
 
   // Parse week: "1-16周" or "1-16周(单)" or "1-16周(双)" or "1-16周 单周"
-  const weekMatch = afterWeekday.match(/(\d+)-(\d+)周\s*(?:\((单|双)\)|(单|双)周)?/);
-  if (!weekMatch) return null;
-
-  const startWeek = parseInt(weekMatch[1], 10);
-  const endWeek = parseInt(weekMatch[2], 10);
-  const patternStr = weekMatch[3] || weekMatch[4];
-  const weekPattern: WeekPattern = patternStr === '单' ? 'odd' : patternStr === '双' ? 'even' : 'all';
+  const weekRange = parseWeekRange(afterWeekday);
+  if (!weekRange) return null;
 
   // Parse course name, teacher, location from beforeWeekday
   // Format: "课程名 教师 地点" - split by spaces, but course name might contain spaces
@@ -76,12 +60,11 @@ function parseLine(line: string): ParsedLine | null {
     teacher,
     location,
     weekday,
-    startSection,
-    endSection,
-    startWeek,
-    endWeek,
-    weekPattern,
-    rawText: trimmed,
+    startSection: sectionRange.start,
+    endSection: sectionRange.end,
+    startWeek: weekRange.start,
+    endWeek: weekRange.end,
+    weekPattern: weekRange.pattern,
   };
 }
 
@@ -93,6 +76,7 @@ function parseLine(line: string): ParsedLine | null {
 export function importClipboard(text: string, semesterName?: string): ImportResult {
   const errors: ImportError[] = [];
   const courses: ImportCourseItem[] = [];
+  const name = semesterName ?? '';
 
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
@@ -101,38 +85,7 @@ export function importClipboard(text: string, semesterName?: string): ImportResu
     const parsed = parseLine(line);
 
     if (parsed) {
-      const sourceHash = computeSourceHash(
-        semesterName ?? '',
-        parsed.courseName,
-        parsed.teacher,
-        parsed.location,
-        parsed.weekday,
-        parsed.startSection,
-        parsed.endSection,
-        parsed.startWeek,
-        parsed.endWeek,
-        parsed.weekPattern
-      );
-
-      courses.push({
-        course_name: parsed.courseName,
-        teacher: parsed.teacher,
-        event: {
-          course_id: 0,
-          weekday: parsed.weekday,
-          start_section: parsed.startSection,
-          end_section: parsed.endSection,
-          start_week: parsed.startWeek,
-          end_week: parsed.endWeek,
-          week_pattern: parsed.weekPattern,
-          location: parsed.location,
-          note: '',
-          source_hash: sourceHash,
-        },
-        source_hash: sourceHash,
-        is_duplicate: false,
-        has_conflict: false,
-      });
+      courses.push(buildImportItem(parsed, name));
     } else if (line) {
       errors.push({
         index: i,
@@ -143,12 +96,5 @@ export function importClipboard(text: string, semesterName?: string): ImportResu
     }
   }
 
-  return {
-    semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
-    courses,
-    unscheduled_courses: [],
-    errors,
-    conflicts: [],
-    total_count: courses.length,
-  };
+  return emptyImportResult(errors, courses, name);
 }

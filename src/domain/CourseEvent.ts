@@ -1,5 +1,11 @@
 export type WeekPattern = 'all' | 'odd' | 'even';
 
+export const VALID_WEEK_PATTERNS: ReadonlySet<string> = new Set(['all', 'odd', 'even']);
+
+export function isValidWeekPattern(v: unknown): v is WeekPattern {
+  return typeof v === 'string' && VALID_WEEK_PATTERNS.has(v);
+}
+
 export interface CourseEvent {
   id: number;
   course_id: number;

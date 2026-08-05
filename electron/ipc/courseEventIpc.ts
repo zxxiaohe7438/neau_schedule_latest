@@ -8,20 +8,13 @@ export function registerCourseEventIpc(): void {
     return repo.listBySemester(semesterId);
   });
 
-  ipcMain.handle('courseEvent:listByCourse', (_event, courseId: number) => {
-    return repo.listByCourse(courseId);
-  });
-
-  ipcMain.handle('courseEvent:getById', (_event, id: number) => {
-    return repo.getById(id);
-  });
-
-  ipcMain.handle('courseEvent:create', (_event, input) => {
-    return repo.create(input);
-  });
-
   ipcMain.handle('courseEvent:update', (_event, id: number, input) => {
-    return repo.update(id, input);
+    const updated = repo.update(id, input);
+    if (!updated) {
+      // 同 course:update：目标事件不存在时返回 null 而非 undefined
+      console.error('courseEvent:update 目标事件不存在, id =', id, 'input =', JSON.stringify(input));
+    }
+    return updated ?? null;
   });
 
   ipcMain.handle('courseEvent:delete', (_event, id: number) => {

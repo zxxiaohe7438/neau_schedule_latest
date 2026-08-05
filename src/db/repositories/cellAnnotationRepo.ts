@@ -4,6 +4,7 @@ import type {
   CellAnnotationUpdateInput,
 } from '../../domain/CellAnnotation';
 import { queryAll, queryOne, execute } from '../connection';
+import { buildUpdateClause } from '../updateHelper';
 
 export function createCellAnnotationRepo() {
   return {
@@ -34,24 +35,16 @@ export function createCellAnnotationRepo() {
     },
 
     update(id: number, input: CellAnnotationUpdateInput): CellAnnotation {
-      const fields: string[] = [];
-      const values: unknown[] = [];
+      const upd = buildUpdateClause(
+        [
+          ['note', input.note],
+          ['color', input.color],
+        ],
+        ["updated_at = datetime('now')"]
+      );
+      if (!upd) return this.getById(id)!;
 
-      if (input.note !== undefined) {
-        fields.push('note = ?');
-        values.push(input.note);
-      }
-      if (input.color !== undefined) {
-        fields.push('color = ?');
-        values.push(input.color);
-      }
-
-      if (fields.length === 0) return this.getById(id)!;
-
-      fields.push("updated_at = datetime('now')");
-      values.push(id);
-
-      execute(`UPDATE cell_annotations SET ${fields.join(', ')} WHERE id = ?`, values);
+      execute(`UPDATE cell_annotations SET ${upd.clause} WHERE id = ?`, [...upd.values, id]);
       return this.getById(id)!;
     },
 
@@ -59,6 +52,7 @@ export function createCellAnnotationRepo() {
       execute('DELETE FROM cell_annotations WHERE id = ?', [id]);
     },
 
+    /** 清空某学期全部格子备注 */
     deleteBySemester(semesterId: number): void {
       execute('DELETE FROM cell_annotations WHERE semester_id = ?', [semesterId]);
     },

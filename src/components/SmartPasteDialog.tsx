@@ -1,5 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import type { ImportResult } from '../domain/ImportResult';
+import { WEEKDAY_LABELS } from '../utils/dateUtils';
+import { useMouseDownOutside } from '../hooks/useMouseDownOutside';
 
 interface SmartPasteDialogProps {
   onConfirm: (result: ImportResult) => void;
@@ -10,7 +12,7 @@ export function SmartPasteDialog({ onConfirm, onCancel }: SmartPasteDialogProps)
   const [text, setText] = useState('');
   const [result, setResult] = useState<ImportResult | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
-  const isMouseDownInside = useRef(false);
+  const { handleMouseDown, handleOverlayClick } = useMouseDownOutside('.smart-paste-dialog', onCancel);
 
   const handleRecognize = async () => {
     if (!text.trim()) return;
@@ -29,19 +31,6 @@ export function SmartPasteDialog({ onConfirm, onCancel }: SmartPasteDialogProps)
   const handleConfirm = () => {
     if (result) {
       onConfirm(result);
-    }
-  };
-
-  const weekdayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    const dialog = (e.currentTarget as HTMLElement).querySelector('.smart-paste-dialog');
-    isMouseDownInside.current = dialog?.contains(e.target as Node) ?? false;
-  };
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget && !isMouseDownInside.current) {
-      onCancel();
     }
   };
 
@@ -97,7 +86,7 @@ export function SmartPasteDialog({ onConfirm, onCancel }: SmartPasteDialogProps)
                       <div key={idx} className="recognized-item">
                         <div className="recognized-item-name">{course.course_name}</div>
                         <div className="recognized-item-details">
-                          {weekdayNames[course.event.weekday]}{' '}
+                          {WEEKDAY_LABELS[course.event.weekday]}{' '}
                           第{course.event.start_section}-{course.event.end_section}节
                           {course.event.location && ` · ${course.event.location}`}
                         </div>

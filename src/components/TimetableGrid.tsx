@@ -32,12 +32,13 @@ interface TimetableGridProps {
   cellAnnotations?: CellAnnotation[];
   eventIdsWithReminders?: Set<number>;
   onWeekChange: (week: number) => void;
-  onEventClick?: (event: CourseEvent, course: Course) => void;
   onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
   onCourseDoubleClick?: (course: Course) => void;
   onEmptyCellDoubleClick?: (weekday: number, sectionNo: number) => void;
   onDeleteAnnotation?: (id: number) => void;
   onSetReminder?: (event: CourseEvent, course: Course) => void;
+  /** 清空当前学期课表（组件内二次确认后回调） */
+  onClearSchedule?: () => void;
 }
 
 /** Map from course_id to Course for quick lookup */
@@ -115,12 +116,12 @@ export function TimetableGrid({
   cellAnnotations = [],
   eventIdsWithReminders,
   onWeekChange,
-  onEventClick,
   onEventDoubleClick,
   onCourseDoubleClick,
   onEmptyCellDoubleClick,
   onDeleteAnnotation,
   onSetReminder,
+  onClearSchedule,
 }: TimetableGridProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const isMouseDownInsideMenu = useRef(false);
@@ -210,6 +211,23 @@ export function TimetableGrid({
         >
           下一周 ▶
         </button>
+        {onClearSchedule && (
+          <button
+            className="btn btn-sm btn-ghost timetable-clear-btn"
+            onClick={() => {
+              if (
+                window.confirm(
+                  '确定要清空当前课表吗？\n将删除本学期的全部课程、课时安排与格子备注。\n此操作不可恢复！'
+                )
+              ) {
+                onClearSchedule();
+              }
+            }}
+            title="清空当前学期课表（不可恢复）"
+          >
+            清空课表
+          </button>
+        )}
       </div>
 
       {/* Content area */}
@@ -218,7 +236,7 @@ export function TimetableGrid({
         <div
           className="timetable-grid"
           style={{
-            gridTemplateRows: `58px repeat(${maxSection}, minmax(56px, 1fr))`,
+            gridTemplateRows: `58px repeat(${maxSection}, minmax(76px, 1fr))`,
           }}
         >
           {/* Header row */}
@@ -249,7 +267,6 @@ export function TimetableGrid({
                 coveredCells={coveredCells}
                 annotationMap={annotationMap}
                 eventIdsWithReminders={eventIdsWithReminders}
-                onEventClick={onEventClick}
                 onEventDoubleClick={onEventDoubleClick}
                 onEmptyCellDoubleClick={onEmptyCellDoubleClick}
                 onContextMenu={handleContextMenu}
@@ -365,7 +382,6 @@ function RowCells({
   coveredCells,
   annotationMap,
   eventIdsWithReminders,
-  onEventClick,
   onEventDoubleClick,
   onEmptyCellDoubleClick,
   onContextMenu,
@@ -376,7 +392,6 @@ function RowCells({
   coveredCells: Set<string>;
   annotationMap: Map<string, CellAnnotation>;
   eventIdsWithReminders?: Set<number>;
-  onEventClick?: (event: CourseEvent, course: Course) => void;
   onEventDoubleClick?: (event: CourseEvent, course: Course) => void;
   onEmptyCellDoubleClick?: (weekday: number, sectionNo: number) => void;
   onContextMenu?: (e: React.MouseEvent, weekday: number, sectionNo: number, annotation?: CellAnnotation, event?: CourseEvent, course?: Course) => void;
@@ -414,6 +429,7 @@ function RowCells({
               <div
                 key={weekday}
                 className="timetable-cell has-annotation"
+                data-col={weekday}
                 style={{ backgroundColor: annotation.color + '88' }}
                 onDoubleClick={() => onEmptyCellDoubleClick?.(weekday, sectionNo)}
                 onContextMenu={(e) => onContextMenu?.(e, weekday, sectionNo, annotation)}
@@ -426,6 +442,7 @@ function RowCells({
             <div
               key={weekday}
               className="timetable-cell empty"
+              data-col={weekday}
               onDoubleClick={() => onEmptyCellDoubleClick?.(weekday, sectionNo)}
               onContextMenu={(e) => onContextMenu?.(e, weekday, sectionNo)}
             />
@@ -436,12 +453,12 @@ function RowCells({
           <div
             key={weekday}
             className="timetable-cell has-course"
+            data-col={weekday}
             style={{
               gridRow: `span ${cell.rowSpan}`,
-              backgroundColor: cell.course.color + '22', // light tint
-              borderLeft: `3px solid ${cell.course.color}`,
+              // 课程色通过 CSS 变量注入，玻璃底/描边/柔光由 .has-course 样式统一渲染（赛博液态玻璃风格）
+              ['--course-color' as string]: cell.course.color,
             }}
-            onClick={() => onEventClick?.(cell.event, cell.course)}
             onDoubleClick={() => onEventDoubleClick?.(cell.event, cell.course)}
             onContextMenu={(e) => onContextMenu?.(e, weekday, sectionNo, undefined, cell.event, cell.course)}
           >
@@ -451,8 +468,13 @@ function RowCells({
             >
               {cell.course.name}
             </div>
+            {cell.course.course_number && (
+              <div className="course-number">{cell.course.course_number}</div>
+            )}
+            {cell.course.teacher && (
+              <div className="course-teacher">{cell.course.teacher}</div>
+            )}
             <div className="course-location">{cell.event.location}</div>
-            <div className="course-teacher">{cell.course.teacher}</div>
             {cell.event.note && (
               <div className="course-note" title={cell.event.note}>
                 📝 {cell.event.note}

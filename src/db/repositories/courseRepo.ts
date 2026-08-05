@@ -1,5 +1,6 @@
 import type { Course, CourseCreateInput, CourseUpdateInput } from '../../domain/Course';
 import { queryAll, queryOne, execute } from '../connection';
+import { buildUpdateClause } from '../updateHelper';
 
 export function createCourseRepo() {
   return {
@@ -30,41 +31,29 @@ export function createCourseRepo() {
     },
 
     update(id: number, input: CourseUpdateInput): Course {
-      const fields: string[] = [];
-      const values: unknown[] = [];
+      const upd = buildUpdateClause(
+        [
+          ['course_number', input.course_number],
+          ['name', input.name],
+          ['teacher', input.teacher],
+          ['color', input.color],
+          ['units', input.units],
+        ],
+        ["updated_at = datetime('now')"]
+      );
+      if (!upd) return this.getById(id)!;
 
-      if (input.course_number !== undefined) {
-        fields.push('course_number = ?');
-        values.push(input.course_number);
-      }
-      if (input.name !== undefined) {
-        fields.push('name = ?');
-        values.push(input.name);
-      }
-      if (input.teacher !== undefined) {
-        fields.push('teacher = ?');
-        values.push(input.teacher);
-      }
-      if (input.color !== undefined) {
-        fields.push('color = ?');
-        values.push(input.color);
-      }
-      if (input.units !== undefined) {
-        fields.push('units = ?');
-        values.push(input.units);
-      }
-
-      if (fields.length === 0) return this.getById(id)!;
-
-      fields.push("updated_at = datetime('now')");
-      values.push(id);
-
-      execute(`UPDATE courses SET ${fields.join(', ')} WHERE id = ?`, values);
+      execute(`UPDATE courses SET ${upd.clause} WHERE id = ?`, [...upd.values, id]);
       return this.getById(id)!;
     },
 
     delete(id: number): void {
       execute('DELETE FROM courses WHERE id = ?', [id]);
+    },
+
+    /** 清空某学期全部课程（course_events 经外键 CASCADE 一并删除） */
+    deleteBySemester(semesterId: number): void {
+      execute('DELETE FROM courses WHERE semester_id = ?', [semesterId]);
     },
   };
 }

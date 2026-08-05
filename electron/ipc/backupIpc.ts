@@ -2,10 +2,12 @@ import { ipcMain, dialog, app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import type { BackupData } from '../../src/domain/BackupData';
+import type { Semester } from '../../src/domain/Semester';
 import { createSemesterRepo } from '../../src/db/repositories/semesterRepo';
 import { createSectionTimeRepo } from '../../src/db/repositories/sectionTimeRepo';
 import { createCourseRepo } from '../../src/db/repositories/courseRepo';
 import { createCourseEventRepo } from '../../src/db/repositories/courseEventRepo';
+import { createSemesterWithDefaultTimes } from './semesterHelper';
 
 function getBackupDir(): string {
   const userDataPath = app.getPath('userData');
@@ -23,46 +25,35 @@ function generateBackupFilename(): string {
   return `neau-schedule-backup-${date}-${time}.json`;
 }
 
+interface BackupRepos {
+  sectionTimeRepo: ReturnType<typeof createSectionTimeRepo>;
+  courseRepo: ReturnType<typeof createCourseRepo>;
+  courseEventRepo: ReturnType<typeof createCourseEventRepo>;
+}
+
+function buildBackupData(semester: Semester, semesterId: number, repos: BackupRepos): BackupData {
+  return {
+    version: 1,
+    exported_at: new Date().toISOString(),
+    semester,
+    section_times: repos.sectionTimeRepo.listBySemester(semesterId),
+    courses: repos.courseRepo.listBySemester(semesterId),
+    course_events: repos.courseEventRepo.listBySemester(semesterId),
+  };
+}
+
 export function registerBackupIpc(): void {
   const semesterRepo = createSemesterRepo();
   const sectionTimeRepo = createSectionTimeRepo();
   const courseRepo = createCourseRepo();
   const courseEventRepo = createCourseEventRepo();
-
-  ipcMain.handle('backup:export', (_event, semesterId: number): string => {
-    const semester = semesterRepo.getById(semesterId);
-    if (!semester) throw new Error(`Semester ${semesterId} not found`);
-
-    const backupData: BackupData = {
-      version: 1,
-      exported_at: new Date().toISOString(),
-      semester,
-      section_times: sectionTimeRepo.listBySemester(semesterId),
-      courses: courseRepo.listBySemester(semesterId),
-      course_events: courseEventRepo.listBySemester(semesterId),
-    };
-
-    const backupDir = getBackupDir();
-    const filename = generateBackupFilename();
-    const filePath = path.join(backupDir, filename);
-
-    fs.writeFileSync(filePath, JSON.stringify(backupData, null, 2), 'utf-8');
-
-    return filePath;
-  });
+  const repos: BackupRepos = { sectionTimeRepo, courseRepo, courseEventRepo };
 
   ipcMain.handle('backup:exportTo', async (_event, semesterId: number): Promise<string | null> => {
     const semester = semesterRepo.getById(semesterId);
     if (!semester) throw new Error(`Semester ${semesterId} not found`);
 
-    const backupData: BackupData = {
-      version: 1,
-      exported_at: new Date().toISOString(),
-      semester,
-      section_times: sectionTimeRepo.listBySemester(semesterId),
-      courses: courseRepo.listBySemester(semesterId),
-      course_events: courseEventRepo.listBySemester(semesterId),
-    };
+    const backupData = buildBackupData(semester, semesterId, repos);
 
     const result = await dialog.showSaveDialog({
       title: '导出备份',
@@ -83,12 +74,9 @@ export function registerBackupIpc(): void {
     const allBackupData = {
       version: 1,
       exported_at: new Date().toISOString(),
-      semesters: semesters.map((semester) => ({
-        semester,
-        section_times: sectionTimeRepo.listBySemester(semester.id),
-        courses: courseRepo.listBySemester(semester.id),
-        course_events: courseEventRepo.listBySemester(semester.id),
-      })),
+      semesters: semesters.map((semester) =>
+        buildBackupData(semester, semester.id, repos)
+      ),
     };
 
     const backupDir = getBackupDir();
@@ -127,11 +115,8 @@ export function registerBackupIpc(): void {
         return { success: false, message: '备份版本不支持' };
       }
 
-      // Auto backup before restore
-      // Note: Auto backup is handled by the renderer before calling import
-
-      // Create semester
-      const semester = semesterRepo.create({
+      // Create semester (always new, never overwrites existing data)
+      const semester = createSemesterWithDefaultTimes({
         name: backupData.semester.name,
         start_date: backupData.semester.start_date,
         weeks_count: backupData.semester.weeks_count,

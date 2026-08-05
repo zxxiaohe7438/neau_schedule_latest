@@ -1,12 +1,12 @@
 # NEAU Local Schedule
 
-东北农业大学个人课表管理桌面软件，纯本地运行，不联网。
+东北农业大学个人课表管理桌面软件，默认纯本地运行；唯一允许的联网行为是用户主动触发的学校官网课表抓取。
 
 ## 核心规则
 
 1. 所有数据保存在本地 SQLite。
 2. 只允许在当前仓库（D:\coding_relative\neau-local-schedule）内工作。
-3. 禁止加入云同步、遥测、在线 CDN、账号系统，禁止联网获取数据。
+3. 禁止加入云同步、遥测、在线 CDN、账号系统；唯一允许的联网行为是**用户主动触发**的学校官网课表抓取（"官网获取"按钮），且仅连接 `*.neau.edu.cn` 官方域名、仅调用课表数据接口；不保存密码，不接入任何第三方服务。
 4. 优先实现 MVP，不擅自扩展功能。
 5. 导入器统一输出 CourseEvent 结构。
 6. 手动修改过的数据重新导入时不得静默覆盖。
@@ -54,18 +54,17 @@
 ```
 electron/          — Electron main/preload/IPC
 src/
-  app/             — React 入口和路由
+  app/             — React 入口（App.tsx 视图组装）
   components/      — UI 组件
-  db/              — schema, migrations, repositories
-  importers/       — JSON/HTML/clipboard/xlsx 导入器
+  db/              — schema, connection, repositories
+  importers/       — JSON/HTML/clipboard/xlsx/text 导入器（公共逻辑见 common.ts）
   domain/          — 领域类型定义
+  hooks/           — 数据加载/导入/编辑/提醒调度 hooks
   utils/           — 工具函数
   styles/          — 全局样式
-tools/             — 独立工具（导出器）
-data/              — 数据目录（备份、原始导入）
-docs/              — 文档
+tools/             — 独立工具（HTML 课表导出器）
+docs/              — 文档（archive/ 为历史归档）
 tests/             — 测试和 fixtures
-.Codex/skills/    — Codex skills
 ```
 
 ## 命令行规则

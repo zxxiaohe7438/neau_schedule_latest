@@ -1,18 +1,16 @@
 # NEAU Timetable Exporter
 
-东北农业大学课表导出器 — 将教务系统课表转换为主软件可导入的 JSON 格式。
+东北农业大学课表导出器 — 将保存的教务系统课表 HTML 转换为主软件可导入的 JSON 格式。
 
 ## 重要说明
 
 - **主软件纯本地运行**，不联网、不保存账号密码
-- **导出器是独立工具**，需要用户手动登录学校系统
+- **导出器是独立工具**，只处理用户手动保存的 HTML 文件
 - **不保存任何账号、密码、cookie、token**
 - **不绕过验证码**
 - **不批量抓取他人数据**
 
 ## 使用方法
-
-### 方法一：从保存的 HTML 文件导出
 
 1. 在浏览器中登录东北农业大学教务系统
 2. 进入个人课表页面
@@ -28,21 +26,6 @@ npm run exporter:from-html -- --input <html文件路径> --output output/timetab
 ```powershell
 npm run exporter:from-html -- --input tools/neau-timetable-exporter/fixtures/sample-neau-page.html --output tools/neau-timetable-exporter/output/timetable.json
 ```
-
-### 方法二：使用 Playwright 浏览器导出（需要安装）
-
-> ⚠️ 需要先安装 Playwright：`npm install playwright`
-
-```powershell
-npm run exporter:browser
-```
-
-流程：
-1. 导出器打开浏览器
-2. 用户手动登录教务系统
-3. 用户手动进入课表页面
-4. 在终端按 Enter 确认
-5. 导出器自动提取课表并生成 JSON
 
 ## 输出格式
 
@@ -79,7 +62,6 @@ tools/neau-timetable-exporter/
 ├─ src/
 │  ├─ types.ts            — 类型定义
 │  ├─ extractFromHtml.ts  — HTML 解析
-│  ├─ extractFromNetwork.ts — 网络响应解析（占位）
 │  └─ normalizeToTimetableJson.ts — 格式转换
 ├─ fixtures/
 │  └─ sample-neau-page.html — 示例 HTML
@@ -94,7 +76,6 @@ tools/neau-timetable-exporter/
 当前解析器基于 mock HTML fixture 实现。如果真实东北农业大学课表页面解析失败，请提供：
 
 1. 保存的 HTML 文件（脱敏后）
-2. 或接口响应 JSON（脱敏后）
 
 **不要提供**：
 - 账号密码
@@ -103,8 +84,10 @@ tools/neau-timetable-exporter/
 
 ## 测试
 
+导出器测试包含在整体测试中：
+
 ```powershell
-npm run exporter:test
+npm run test
 ```
 
 ## 注意事项

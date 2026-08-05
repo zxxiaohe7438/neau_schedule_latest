@@ -1,29 +1,13 @@
 import { useState, useEffect } from 'react';
-import type { Course } from '../domain/Course';
-import type { CourseEvent, WeekPattern } from '../domain/CourseEvent';
+import type { Course, CourseUpdateInput } from '../domain/Course';
+import type { CourseEvent, CourseEventUpdateInput, WeekPattern } from '../domain/CourseEvent';
 import { WEEKDAY_LABELS } from '../utils/dateUtils';
 
 interface CourseEditorProps {
   course: Course;
   event?: CourseEvent;
-  onSave: (courseData: CourseUpdateData, eventData?: CourseEventUpdateData) => void;
+  onSave: (courseData: CourseUpdateInput, eventData?: CourseEventUpdateInput) => void;
   onCancel: () => void;
-}
-
-interface CourseUpdateData {
-  name?: string;
-  teacher?: string;
-}
-
-interface CourseEventUpdateData {
-  weekday?: number;
-  start_section?: number;
-  end_section?: number;
-  start_week?: number;
-  end_week?: number;
-  week_pattern?: WeekPattern;
-  location?: string;
-  note?: string;
 }
 
 export function CourseEditor({ course, event, onSave, onCancel }: CourseEditorProps) {
@@ -70,11 +54,11 @@ export function CourseEditor({ course, event, onSave, onCancel }: CourseEditorPr
       return;
     }
 
-    const courseData: CourseUpdateData = {};
+    const courseData: CourseUpdateInput = {};
     if (courseName !== course.name) courseData.name = courseName;
     if (teacher !== course.teacher) courseData.teacher = teacher;
 
-    const eventData: CourseEventUpdateData = {};
+    const eventData: CourseEventUpdateInput = {};
     if (event) {
       if (weekday !== event.weekday) eventData.weekday = weekday;
       if (startSection !== event.start_section) eventData.start_section = startSection;

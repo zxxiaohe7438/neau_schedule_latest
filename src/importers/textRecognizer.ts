@@ -11,24 +11,17 @@
 
 import type { ImportResult, ImportCourseItem, ImportError } from '../domain/ImportResult';
 import type { WeekPattern } from '../domain/CourseEvent';
-import { computeSourceHash } from './normalizer';
 import { WEEKDAY_MAP } from '../utils/weekday';
+import {
+  parseSectionRange,
+  parseWeekRange,
+  buildImportItem,
+  emptyImportResult,
+  type ParsedCourseData,
+} from './common';
 
 /** Chinese weekday characters for date-based detection */
 const WEEKDAY_CHARS = ['日', '一', '二', '三', '四', '五', '六'];
-
-interface ParsedItem {
-  courseName: string;
-  teacher: string;
-  location: string;
-  weekday: number;
-  startSection: number;
-  endSection: number;
-  startWeek: number;
-  endWeek: number;
-  weekPattern: WeekPattern;
-  rawText: string;
-}
 
 /**
  * Extract weekday from text.
@@ -100,9 +93,10 @@ function extractTimeSlot(text: string): { start: number; end: number; index: num
   // Try "第X-Y节" or "X-Y节" format
   const sectionMatch = text.match(/(?:第)?(\d+)-(\d+)节/);
   if (sectionMatch) {
+    const range = parseSectionRange(sectionMatch[0])!;
     return {
-      start: parseInt(sectionMatch[1], 10),
-      end: parseInt(sectionMatch[2], 10),
+      start: range.start,
+      end: range.end,
       index: sectionMatch.index!,
       length: sectionMatch[0].length,
     };
@@ -212,11 +206,11 @@ function extractWeekRange(text: string): {
 } | null {
   const weekMatch = text.match(/(?:第)?(\d+)-(\d+)周\s*(?:\((单|双)\)|(单|双)周)?/);
   if (weekMatch) {
-    const patternStr = weekMatch[3] || weekMatch[4];
+    const range = parseWeekRange(weekMatch[0])!;
     return {
-      startWeek: parseInt(weekMatch[1], 10),
-      endWeek: parseInt(weekMatch[2], 10),
-      weekPattern: patternStr === '单' ? 'odd' : patternStr === '双' ? 'even' : 'all',
+      startWeek: range.start,
+      endWeek: range.end,
+      weekPattern: range.pattern,
       index: weekMatch.index!,
       length: weekMatch[0].length,
     };
@@ -242,7 +236,7 @@ function extractWeekRange(text: string): {
  * Try to parse a structured line (tab or multi-space separated).
  * Format: "课程名\t周几\t节次\t地点\t周次"
  */
-function parseStructuredLine(line: string): ParsedItem | null {
+function parseStructuredLine(line: string): ParsedCourseData | null {
   const parts = line.split(/[\t]+|\s{2,}/).map(p => p.trim()).filter(Boolean);
   if (parts.length < 3) return null;
 
@@ -318,7 +312,6 @@ function parseStructuredLine(line: string): ParsedItem | null {
     startWeek,
     endWeek,
     weekPattern,
-    rawText: line,
   };
 }
 
@@ -326,7 +319,7 @@ function parseStructuredLine(line: string): ParsedItem | null {
  * Try to parse an exam-style line.
  * Format: "6月15日(周一) 14:00-16:00 数据库原理 成栋楼A101"
  */
-function parseExamLine(line: string): ParsedItem | null {
+function parseExamLine(line: string): ParsedCourseData | null {
   const weekday = extractWeekday(line);
   const timeSlot = extractTimeSlot(line);
   const location = extractLocation(line);
@@ -363,7 +356,6 @@ function parseExamLine(line: string): ParsedItem | null {
     startWeek: 1,
     endWeek: 18,
     weekPattern: 'all',
-    rawText: line,
   };
 }
 
@@ -371,7 +363,7 @@ function parseExamLine(line: string): ParsedItem | null {
  * Try to parse a natural language line.
  * This is a fallback for informal text.
  */
-function parseNaturalLanguage(line: string): ParsedItem | null {
+function parseNaturalLanguage(line: string): ParsedCourseData | null {
   const weekday = extractWeekday(line);
   const timeSlot = extractTimeSlot(line);
   const location = extractLocation(line);
@@ -405,14 +397,13 @@ function parseNaturalLanguage(line: string): ParsedItem | null {
     startWeek: 1,
     endWeek: 18,
     weekPattern: 'all',
-    rawText: line,
   };
 }
 
 /**
  * Parse a single line using multiple strategies.
  */
-function parseLine(line: string): ParsedItem | null {
+function parseLine(line: string): ParsedCourseData | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
 
@@ -438,6 +429,7 @@ function parseLine(line: string): ParsedItem | null {
 export function recognizeText(text: string, semesterName?: string): ImportResult {
   const errors: ImportError[] = [];
   const courses: ImportCourseItem[] = [];
+  const name = semesterName ?? '';
 
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
@@ -446,38 +438,7 @@ export function recognizeText(text: string, semesterName?: string): ImportResult
     const parsed = parseLine(line);
 
     if (parsed) {
-      const sourceHash = computeSourceHash(
-        semesterName ?? '',
-        parsed.courseName,
-        parsed.teacher,
-        parsed.location,
-        parsed.weekday,
-        parsed.startSection,
-        parsed.endSection,
-        parsed.startWeek,
-        parsed.endWeek,
-        parsed.weekPattern
-      );
-
-      courses.push({
-        course_name: parsed.courseName,
-        teacher: parsed.teacher,
-        event: {
-          course_id: 0,
-          weekday: parsed.weekday,
-          start_section: parsed.startSection,
-          end_section: parsed.endSection,
-          start_week: parsed.startWeek,
-          end_week: parsed.endWeek,
-          week_pattern: parsed.weekPattern,
-          location: parsed.location,
-          note: '',
-          source_hash: sourceHash,
-        },
-        source_hash: sourceHash,
-        is_duplicate: false,
-        has_conflict: false,
-      });
+      courses.push(buildImportItem(parsed, name));
     } else if (line) {
       errors.push({
         index: i,
@@ -488,12 +449,5 @@ export function recognizeText(text: string, semesterName?: string): ImportResult
     }
   }
 
-  return {
-    semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
-    courses,
-    unscheduled_courses: [],
-    errors,
-    conflicts: [],
-    total_count: courses.length,
-  };
+  return emptyImportResult(errors, courses, name);
 }

@@ -1,10 +1,8 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Semester } from '../domain/Semester';
 import type { Course } from '../domain/Course';
 import type { CourseEvent } from '../domain/CourseEvent';
-import type { SectionTime } from '../domain/SectionTime';
-import type { ImportResult } from '../domain/ImportResult';
-import type { CellAnnotation, CellAnnotationCreateInput } from '../domain/CellAnnotation';
+import type { CellAnnotationCreateInput } from '../domain/CellAnnotation';
 import { SemesterManager } from '../components/SemesterManager';
 import { SemesterSwitcher } from '../components/SemesterSwitcher';
 import { TimetableGrid } from '../components/TimetableGrid';
@@ -13,48 +11,63 @@ import { CourseEditor } from '../components/CourseEditor';
 import { ImportPreview } from '../components/ImportPreview';
 import { CellNoteEditor } from '../components/CellNoteEditor';
 import { SmartPasteDialog } from '../components/SmartPasteDialog';
+import { SchoolFetchDialog } from '../components/SchoolFetchDialog';
 import { Modal } from '../components/Modal';
 import { ReminderToast } from '../components/ReminderToast';
+import { TitleBar } from '../components/TitleBar';
 import { ReminderSettingsPanel } from '../components/ReminderSettings';
 import { CustomReminderDialog } from '../components/CustomReminderDialog';
+import { SunIcon, MoonIcon, GearIcon } from '../components/icons';
 import { useReminderScheduler } from '../hooks/useReminderScheduler';
+import { useScheduleData } from '../hooks/useScheduleData';
+import { useImportFlow } from '../hooks/useImportFlow';
+import { useCourseEditing } from '../hooks/useCourseEditing';
 import { getCustomReminders } from '../utils/customReminders';
-import { getWeekNumber } from '../utils/dateUtils';
 
 type View = 'home' | 'timetable' | 'list' | 'import' | 'edit' | 'settings';
 
 export function App() {
-  const [semesters, setSemesters] = useState<Semester[]>([]);
-  const [activeSemesterId, setActiveSemesterId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('home');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved === 'true';
   });
 
-  // Data for active semester
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [events, setEvents] = useState<CourseEvent[]>([]);
-  const [sectionTimes, setSectionTimes] = useState<SectionTime[]>([]);
-  const [currentWeek, setCurrentWeek] = useState(1);
-  const [unscheduledCourses, setUnscheduledCourses] = useState<Course[]>([]);
+  const schedule = useScheduleData();
 
-  // Import state
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // 课程/事件编辑状态
+  const editing = useCourseEditing({
+    view,
+    onDataChanged: schedule.reloadActiveSemesterData,
+    onExitEditView: () => setView('list'),
+  });
 
-  // Edit state
-  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
-  const [editingEvent, setEditingEvent] = useState<CourseEvent | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
+  // 导入状态机
+  const importFlow = useImportFlow({
+    onOpenPreview: () => setView('import'),
+    onClosePreview: () => setView('timetable'),
+    onImported: async (semester) => {
+      try {
+        if (semester) {
+          // 刷新学期列表（导入可能同步了学期日期），再切到目标学期
+          await schedule.reloadSemesters();
+          schedule.selectSemester(semester.id);
+        }
+      } catch (err) {
+        console.error('Failed to refresh after import:', err);
+      }
+      setView('timetable');
+    },
+  });
 
   // Cell annotation state
-  const [cellAnnotations, setCellAnnotations] = useState<CellAnnotation[]>([]);
   const [editingCell, setEditingCell] = useState<{ weekday: number; sectionNo: number } | null>(null);
 
   // Smart paste state
   const [showSmartPaste, setShowSmartPaste] = useState(false);
+
+  // School website fetch state
+  const [showSchoolFetch, setShowSchoolFetch] = useState(false);
 
   // Custom reminder dialog state
   const [reminderDialogEvent, setReminderDialogEvent] = useState<CourseEvent | null>(null);
@@ -76,152 +89,37 @@ export function App() {
     localStorage.setItem('darkMode', String(isDarkMode));
   }, [isDarkMode]);
 
-  const loadSemesters = useCallback(async () => {
-    try {
-      const list = await window.api.semester.list();
-      setSemesters(list);
-      // Auto-select first non-archived semester
-      const active = list.find((s) => !s.is_archived);
-      if (active) {
-        setActiveSemesterId(active.id);
-        setView('timetable');
-      }
-    } catch (err) {
-      console.error('Failed to load semesters:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // 初载完成且有学期时进入课表视图
   useEffect(() => {
-    loadSemesters();
-  }, [loadSemesters]);
-
-  // Load semester data when active semester changes
-  useEffect(() => {
-    if (!activeSemesterId) {
-      setCourses([]);
-      setEvents([]);
-      setSectionTimes([]);
-      setUnscheduledCourses([]);
-      return;
+    if (!schedule.loading && schedule.activeSemesterId !== null) {
+      setView('timetable');
     }
-
-    const loadSemesterData = async () => {
-      try {
-        const [courseList, eventList, timeList, annotationList] = await Promise.all([
-          window.api.course.listBySemester(activeSemesterId),
-          window.api.courseEvent.listBySemester(activeSemesterId),
-          window.api.sectionTime.listBySemester(activeSemesterId),
-          window.api.cellAnnotation.listBySemester(activeSemesterId),
-        ]);
-        setCourses(courseList);
-        setEvents(eventList);
-        setSectionTimes(timeList);
-        setCellAnnotations(annotationList);
-
-        // Find unscheduled courses (courses without events)
-        const courseIdsWithEvents = new Set(eventList.map(e => e.course_id));
-        const unscheduled = courseList.filter(c => !courseIdsWithEvents.has(c.id));
-        setUnscheduledCourses(unscheduled);
-
-        // Calculate current week based on today's date
-        const semester = semesters.find((s) => s.id === activeSemesterId);
-        if (semester) {
-          const week = getWeekNumber(new Date(), semester.start_date);
-          const clamped = Math.max(1, Math.min(week, semester.weeks_count));
-          setCurrentWeek(clamped > 0 ? clamped : 1);
-        }
-      } catch (err) {
-        console.error('Failed to load semester data:', err);
-      }
-    };
-
-    loadSemesterData();
-  }, [activeSemesterId, semesters]);
+  }, [schedule.loading, schedule.activeSemesterId]);
 
   const handleSemesterCreated = useCallback(
     (semester: Semester) => {
-      setSemesters((prev) => [semester, ...prev]);
-      setActiveSemesterId(semester.id);
+      schedule.addSemester(semester);
       setView('timetable');
     },
-    []
+    [schedule]
   );
 
   const handleSemesterDeleted = useCallback(
     (id: number) => {
-      setSemesters((prev) => prev.filter((s) => s.id !== id));
-      if (activeSemesterId === id) {
-        setActiveSemesterId(null);
+      schedule.removeSemester(id);
+      if (schedule.activeSemesterId === id) {
         setView('home');
       }
     },
-    [activeSemesterId]
+    [schedule]
   );
 
-  const handleSelectSemester = useCallback((id: number) => {
-    setActiveSemesterId(id);
-    setView('timetable');
-  }, []);
-
-  const handleSeedMockData = useCallback(async () => {
-    try {
-      if (!window.api.dev) {
-        console.error('Dev API not available');
-        return;
-      }
-      const semester = await window.api.dev.seed();
-      setSemesters((prev) => [semester, ...prev]);
-      setActiveSemesterId(semester.id);
+  const handleSelectSemester = useCallback(
+    (id: number) => {
+      schedule.selectSemester(id);
       setView('timetable');
-    } catch (err) {
-      console.error('Failed to seed mock data:', err);
-    }
-  }, []);
-
-  const handleClearAllData = useCallback(async () => {
-    try {
-      if (!window.api.dev) {
-        console.error('Dev API not available');
-        return;
-      }
-      await window.api.dev.clearAll();
-      setSemesters([]);
-      setActiveSemesterId(null);
-      setCourses([]);
-      setEvents([]);
-      setSectionTimes([]);
-      setUnscheduledCourses([]);
-      setView('home');
-    } catch (err) {
-      console.error('Failed to clear all data:', err);
-    }
-  }, []);
-
-  const handleDeleteEvent = useCallback(
-    async (eventId: number) => {
-      try {
-        await window.api.courseEvent.delete(eventId);
-        setEvents((prev) => prev.filter((e) => e.id !== eventId));
-      } catch (err) {
-        console.error('Failed to delete event:', err);
-      }
     },
-    []
-  );
-
-  const handleDeleteCourse = useCallback(
-    async (courseId: number) => {
-      try {
-        await window.api.course.delete(courseId);
-        setCourses((prev) => prev.filter((c) => c.id !== courseId));
-        setEvents((prev) => prev.filter((e) => e.course_id !== courseId));
-      } catch (err) {
-        console.error('Failed to delete course:', err);
-      }
-    },
-    []
+    [schedule]
   );
 
   // Backup handlers
@@ -243,155 +141,30 @@ export function App() {
       const result = await window.api.backup.importJson();
       if (result.success) {
         alert(result.message);
-        await loadSemesters();
+        await schedule.reloadSemesters();
       } else {
         alert(result.message);
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : '恢复备份失败');
     }
-  }, [loadSemesters]);
+  }, [schedule]);
 
-  // Import handlers
-  const handleImportClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        const result = await window.api.import.importJson(data);
-        setImportResult(result);
-        setView('import');
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '导入失败');
-      }
-
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    },
-    []
-  );
-
-  const handleImportConfirm = useCallback(async (updatedResult: ImportResult) => {
-    try {
-      await window.api.import.confirmImport(updatedResult);
-      setImportResult(null);
-      setView('timetable');
-      // Reload semester list
-      const list = await window.api.semester.list();
-      setSemesters(list);
-      // Find the semester we just imported to
-      const importedSemester = list.find(s => s.name === updatedResult.semester.name);
-      if (importedSemester) {
-        setActiveSemesterId(importedSemester.id);
-      }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '导入确认失败');
-    }
-  }, []);
-
-  const handleImportCancel = useCallback(() => {
-    setImportResult(null);
-    setView('timetable');
-  }, []);
-
-  // Edit handlers
+  // 课表/列表入口
   const handleEditEvent = useCallback(
     (event: CourseEvent) => {
-      const course = courses.find((c) => c.id === event.course_id);
-      if (course) {
-        setEditingCourse(course);
-        setEditingEvent(event);
-        setView('edit');
-      }
+      editing.openEvent(event, schedule.courses);
+      setView('edit');
     },
-    [courses]
+    [editing, schedule.courses]
   );
 
   const handleEditCourse = useCallback(
     (course: Course) => {
-      // Find first event for this course
-      const event = events.find((e) => e.course_id === course.id);
-      setEditingCourse(course);
-      setEditingEvent(event ?? null);
+      editing.openCourse(course, schedule.events);
       setView('edit');
     },
-    [events]
-  );
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleSaveEdit = useCallback(
-    async (courseData: any, eventData?: any) => {
-      if (!editingCourse) return;
-
-      try {
-        // Update course
-        if (Object.keys(courseData).length > 0) {
-          await window.api.course.update(editingCourse.id, courseData);
-        }
-
-        // Update event
-        if (editingEvent && eventData && Object.keys(eventData).length > 0) {
-          await window.api.courseEvent.update(editingEvent.id, eventData);
-        }
-
-        // Reload data
-        if (activeSemesterId) {
-          const [courseList, eventList] = await Promise.all([
-            window.api.course.listBySemester(activeSemesterId),
-            window.api.courseEvent.listBySemester(activeSemesterId),
-          ]);
-          setCourses(courseList);
-          setEvents(eventList);
-        }
-
-        setEditingCourse(null);
-        setEditingEvent(null);
-        setShowEditModal(false);
-        if (view === 'edit') {
-          setView('list');
-        }
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '保存失败');
-      }
-    },
-    [editingCourse, editingEvent, activeSemesterId, view]
-  );
-
-  const handleCancelEdit = useCallback(() => {
-    setEditingCourse(null);
-    setEditingEvent(null);
-    if (showEditModal) {
-      setShowEditModal(false);
-    } else {
-      setView('list');
-    }
-  }, [showEditModal]);
-
-  const handleTimetableDoubleClick = useCallback(
-    (event: CourseEvent, course: Course) => {
-      setEditingCourse(course);
-      setEditingEvent(event);
-      setShowEditModal(true);
-    },
-    []
-  );
-
-  const handleCourseDoubleClick = useCallback(
-    (course: Course) => {
-      setEditingCourse(course);
-      setEditingEvent(null);
-      setShowEditModal(true);
-    },
-    []
+    [editing, schedule.events]
   );
 
   // Cell annotation handlers
@@ -404,62 +177,27 @@ export function App() {
 
   const handleSaveAnnotation = useCallback(
     async (input: CellAnnotationCreateInput): Promise<number | null> => {
-      try {
-        const created = await window.api.cellAnnotation.create(input);
-        if (activeSemesterId) {
-          const annotations = await window.api.cellAnnotation.listBySemester(activeSemesterId);
-          setCellAnnotations(annotations);
-        }
-        setEditingCell(null);
-        return created?.id ?? null;
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '保存备注失败');
-        return null;
-      }
+      const createdId = await schedule.saveAnnotation(input);
+      setEditingCell(null);
+      return createdId;
     },
-    [activeSemesterId]
+    [schedule]
   );
 
   const handleUpdateAnnotation = useCallback(
     async (id: number, note: string, color: string) => {
-      try {
-        await window.api.cellAnnotation.update(id, { note, color });
-        if (activeSemesterId) {
-          const annotations = await window.api.cellAnnotation.listBySemester(activeSemesterId);
-          setCellAnnotations(annotations);
-        }
-        setEditingCell(null);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '更新备注失败');
-      }
+      await schedule.updateAnnotation(id, note, color);
+      setEditingCell(null);
     },
-    [activeSemesterId]
+    [schedule]
   );
 
   const handleDeleteAnnotation = useCallback(
     async (id: number) => {
-      try {
-        await window.api.cellAnnotation.delete(id);
-        if (activeSemesterId) {
-          const annotations = await window.api.cellAnnotation.listBySemester(activeSemesterId);
-          setCellAnnotations(annotations);
-        }
-        setEditingCell(null);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '删除备注失败');
-      }
+      await schedule.deleteAnnotation(id);
+      setEditingCell(null);
     },
-    [activeSemesterId]
-  );
-
-  // Smart paste handler
-  const handleSmartPasteConfirm = useCallback(
-    async (result: ImportResult) => {
-      setShowSmartPaste(false);
-      setImportResult(result);
-      setView('import');
-    },
-    []
+    [schedule]
   );
 
   // Custom reminder handler
@@ -471,19 +209,19 @@ export function App() {
     []
   );
 
-  const activeSemester = semesters.find((s) => s.id === activeSemesterId);
+  const activeSemester = schedule.activeSemester;
 
   // 提醒调度
   const { toasts, dismissToast, addTestToast } = useReminderScheduler({
-    semesters,
-    activeSemesterId,
-    courses,
-    events,
-    sectionTimes,
-    cellAnnotations,
+    semesters: schedule.semesters,
+    activeSemesterId: schedule.activeSemesterId,
+    courses: schedule.courses,
+    events: schedule.events,
+    sectionTimes: schedule.sectionTimes,
+    cellAnnotations: schedule.cellAnnotations,
   });
 
-  if (loading) {
+  if (schedule.loading) {
     return (
       <div className="app-loading">
         <h1>NEAU Local Schedule</h1>
@@ -494,13 +232,15 @@ export function App() {
 
   return (
     <div className="app">
+      {/* 自绘窗口标题栏（frameless） */}
+      <TitleBar />
       {/* Hidden file inputs for import */}
       <input
-        ref={fileInputRef}
+        ref={importFlow.fileInputRef}
         type="file"
         accept=".json"
         style={{ display: 'none' }}
-        onChange={handleFileChange}
+        onChange={importFlow.handleFileChange}
       />
 
       <header className="app-header">
@@ -508,37 +248,43 @@ export function App() {
           NEAU Local Schedule
         </h1>
         <button
-          className="btn btn-sm dark-mode-toggle"
+          className="btn btn-sm btn-ghost dark-mode-toggle"
           onClick={() => setIsDarkMode(!isDarkMode)}
           title={isDarkMode ? '切换到亮色模式' : '切换到暗色模式'}
+          aria-label={isDarkMode ? '切换到亮色模式' : '切换到暗色模式'}
         >
-          {isDarkMode ? '☀️' : '🌙'}
+          {isDarkMode ? <SunIcon size={18} /> : <MoonIcon size={18} />}
         </button>
-        {semesters.length > 0 && (
+        {schedule.semesters.length > 0 && (
           <SemesterSwitcher
-            semesters={semesters}
-            activeId={activeSemesterId}
+            semesters={schedule.semesters}
+            activeId={schedule.activeSemesterId}
             onSelect={handleSelectSemester}
           />
         )}
         {view !== 'import' && (
           <div className="header-actions">
             <button
-              className="btn btn-sm"
+              className="btn btn-sm btn-ghost"
               onClick={() => setView('settings')}
               title="设置提醒"
+              aria-label="设置提醒"
             >
-              ⚙️
+              <GearIcon size={16} />
             </button>
-            <button className="btn btn-sm" onClick={handleImportClick}>
+            <button className="btn btn-sm btn-ghost" onClick={importFlow.handleImportClick}>
               导入 JSON
             </button>
-            <button className="btn btn-sm" onClick={() => setShowSmartPaste(true)} title="粘贴文本自动识别考试时间等信息">
+            <button className="btn btn-sm btn-ghost" onClick={() => setShowSchoolFetch(true)} title="登录学校教务系统并获取本学期课表">
+              官网获取
+            </button>
+            <button className="btn btn-sm btn-ghost" onClick={() => setShowSmartPaste(true)} title="粘贴文本自动识别考试时间等信息">
               智能粘贴
             </button>
           </div>
         )}
-        {view !== 'home' && view !== 'import' && activeSemesterId && (
+        {/* 学期管理页（home）也显示视图标签，保证能切回周课表/课程列表 */}
+        {view !== 'import' && schedule.activeSemesterId && (
           <nav className="view-tabs">
             <button
               className={`view-tab ${view === 'timetable' ? 'active' : ''}`}
@@ -558,55 +304,56 @@ export function App() {
       <main className="app-main">
         {view === 'settings' ? (
           <ReminderSettingsPanel
-            onBack={() => setView(activeSemesterId ? 'timetable' : 'home')}
+            onBack={() => setView(schedule.activeSemesterId ? 'timetable' : 'home')}
             onTestToast={addTestToast}
           />
-        ) : view === 'import' && importResult ? (
+        ) : view === 'import' && importFlow.importResult ? (
           <ImportPreview
-            result={importResult}
-            onConfirm={handleImportConfirm}
-            onCancel={handleImportCancel}
+            result={importFlow.importResult}
+            onConfirm={importFlow.confirmImport}
+            onCancel={importFlow.cancelImport}
           />
-        ) : view === 'home' || !activeSemesterId ? (
+        ) : view === 'home' || !schedule.activeSemesterId ? (
           <SemesterManager
-            semesters={semesters}
+            semesters={schedule.semesters}
             onCreated={handleSemesterCreated}
             onDeleted={handleSemesterDeleted}
-            onSeedMockData={window.api.dev ? handleSeedMockData : undefined}
-            onClearAllData={window.api.dev ? handleClearAllData : undefined}
+            onSeedMockData={window.api.dev ? schedule.seedMockData : undefined}
+            onClearAllData={schedule.clearAllData}
             onExportBackup={handleExportBackup}
             onRestoreBackup={handleRestoreBackup}
           />
         ) : view === 'timetable' && activeSemester ? (
           <TimetableGrid
             semester={activeSemester}
-            courses={courses}
-            events={events}
-            sectionTimes={sectionTimes}
-            currentWeek={currentWeek}
-            unscheduledCourses={unscheduledCourses}
-            cellAnnotations={cellAnnotations}
+            courses={schedule.courses}
+            events={schedule.events}
+            sectionTimes={schedule.sectionTimes}
+            currentWeek={schedule.currentWeek}
+            unscheduledCourses={schedule.unscheduledCourses}
+            cellAnnotations={schedule.cellAnnotations}
             eventIdsWithReminders={eventIdsWithReminders}
-            onWeekChange={setCurrentWeek}
-            onEventDoubleClick={handleTimetableDoubleClick}
-            onCourseDoubleClick={handleCourseDoubleClick}
+            onWeekChange={schedule.setCurrentWeek}
+            onEventDoubleClick={editing.openFromTimetable}
+            onCourseDoubleClick={handleEditCourse}
             onEmptyCellDoubleClick={handleEmptyCellDoubleClick}
             onDeleteAnnotation={handleDeleteAnnotation}
             onSetReminder={handleSetReminder}
+            onClearSchedule={schedule.clearSchedule}
           />
-        ) : view === 'edit' && editingCourse ? (
+        ) : view === 'edit' && editing.editingCourse ? (
           <CourseEditor
-            course={editingCourse}
-            event={editingEvent ?? undefined}
-            onSave={handleSaveEdit}
-            onCancel={handleCancelEdit}
+            course={editing.editingCourse}
+            event={editing.editingEvent ?? undefined}
+            onSave={editing.save}
+            onCancel={editing.cancel}
           />
         ) : view === 'list' ? (
           <CourseListView
-            courses={courses}
-            events={events}
-            onDeleteEvent={handleDeleteEvent}
-            onDeleteCourse={handleDeleteCourse}
+            courses={schedule.courses}
+            events={schedule.events}
+            onDeleteEvent={schedule.deleteEvent}
+            onDeleteCourse={schedule.deleteCourse}
             onEditEvent={handleEditEvent}
             onEditCourse={handleEditCourse}
           />
@@ -615,20 +362,16 @@ export function App() {
 
       {/* Edit Modal for double-click on timetable */}
       <Modal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingCourse(null);
-          setEditingEvent(null);
-        }}
+        isOpen={editing.showEditModal}
+        onClose={editing.cancel}
         title="编辑课程"
       >
-        {editingCourse && (
+        {editing.editingCourse && (
           <CourseEditor
-            course={editingCourse}
-            event={editingEvent ?? undefined}
-            onSave={handleSaveEdit}
-            onCancel={handleCancelEdit}
+            course={editing.editingCourse}
+            event={editing.editingEvent ?? undefined}
+            onSave={editing.save}
+            onCancel={editing.cancel}
           />
         )}
       </Modal>
@@ -636,29 +379,37 @@ export function App() {
       {/* Smart Paste Dialog */}
       {showSmartPaste && (
         <SmartPasteDialog
-          onConfirm={handleSmartPasteConfirm}
+          onConfirm={importFlow.handleSmartPasteConfirm}
           onCancel={() => setShowSmartPaste(false)}
         />
       )}
 
+      {/* School Fetch Dialog */}
+      {showSchoolFetch && (
+        <SchoolFetchDialog
+          onResult={importFlow.handleSmartPasteConfirm}
+          onCancel={() => setShowSchoolFetch(false)}
+        />
+      )}
+
       {/* Cell Note Editor */}
-      {editingCell && activeSemesterId && activeSemester && (
+      {editingCell && schedule.activeSemesterId && activeSemester && (
         <CellNoteEditor
-          semesterId={activeSemesterId}
+          semesterId={schedule.activeSemesterId}
           weekday={editingCell.weekday}
           sectionNo={editingCell.sectionNo}
-          currentWeek={currentWeek}
+          currentWeek={schedule.currentWeek}
           existingAnnotation={
-            cellAnnotations.find(
+            schedule.cellAnnotations.find(
               (a) =>
                 a.weekday === editingCell.weekday &&
                 a.section_no === editingCell.sectionNo &&
-                a.start_week <= currentWeek &&
-                a.end_week >= currentWeek
+                a.start_week <= schedule.currentWeek &&
+                a.end_week >= schedule.currentWeek
             )
           }
           semester={activeSemester}
-          sectionTimes={sectionTimes}
+          sectionTimes={schedule.sectionTimes}
           onSave={handleSaveAnnotation}
           onUpdate={handleUpdateAnnotation}
           onDelete={handleDeleteAnnotation}
@@ -681,8 +432,8 @@ export function App() {
             course={reminderDialogCourse}
             event={reminderDialogEvent}
             semester={activeSemester}
-            currentWeek={currentWeek}
-            sectionTimes={sectionTimes}
+            currentWeek={schedule.currentWeek}
+            sectionTimes={schedule.sectionTimes}
             onConfirm={() => {
               setReminderDialogEvent(null);
               setReminderDialogCourse(null);

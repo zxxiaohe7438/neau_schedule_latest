@@ -1,25 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type {
-  Semester,
-  SemesterCreateInput,
-  SemesterUpdateInput,
-} from '../src/domain/Semester';
-import type {
-  SectionTime,
-  SectionTimeCreateInput,
-} from '../src/domain/SectionTime';
-import type {
-  Course,
-  CourseCreateInput,
-  CourseUpdateInput,
-} from '../src/domain/Course';
+import type { Semester, SemesterCreateInput } from '../src/domain/Semester';
+import type { SectionTime } from '../src/domain/SectionTime';
+import type { Course, CourseUpdateInput } from '../src/domain/Course';
 import type {
   CourseEvent,
-  CourseEventCreateInput,
   CourseEventUpdateInput,
 } from '../src/domain/CourseEvent';
 import type { ImportResult } from '../src/domain/ImportResult';
 import type { BackupData } from '../src/domain/BackupData';
+import type { SchoolLoginStatus, SchoolFetchResult } from '../src/domain/School';
 import type {
   CellAnnotation,
   CellAnnotationCreateInput,
@@ -27,43 +16,48 @@ import type {
 } from '../src/domain/CellAnnotation';
 
 export interface ElectronAPI {
+  // Window controls (frameless)
+  window: {
+    minimize: () => void;
+    toggleMaximize: () => void;
+    close: () => void;
+    /** 订阅最大化状态变化，返回取消订阅函数 */
+    onMaximizedChange: (cb: (maximized: boolean) => void) => () => void;
+  };
   // Semester
   semester: {
     list: () => Promise<Semester[]>;
     create: (input: SemesterCreateInput) => Promise<Semester>;
-    update: (id: number, input: SemesterUpdateInput) => Promise<Semester>;
     delete: (id: number) => Promise<void>;
     archive: (id: number) => Promise<void>;
     unarchive: (id: number) => Promise<void>;
+    /** 清空某学期课表内容（课程/事件/格子备注），保留学期与节次时间 */
+    clearSchedule: (id: number) => Promise<void>;
+    /** 清空全部数据（删除所有学期，不可恢复） */
+    clearAll: () => Promise<{ success: boolean }>;
   };
   // Section Time
   sectionTime: {
     listBySemester: (semesterId: number) => Promise<SectionTime[]>;
-    upsertBatch: (semesterId: number, times: SectionTimeCreateInput[]) => Promise<SectionTime[]>;
   };
   // Course
   course: {
     listBySemester: (semesterId: number) => Promise<Course[]>;
-    create: (input: CourseCreateInput) => Promise<Course>;
     update: (id: number, input: CourseUpdateInput) => Promise<Course>;
     delete: (id: number) => Promise<void>;
   };
   // Course Event
   courseEvent: {
     listBySemester: (semesterId: number) => Promise<CourseEvent[]>;
-    getById: (id: number) => Promise<CourseEvent | undefined>;
-    create: (input: CourseEventCreateInput) => Promise<CourseEvent>;
     update: (id: number, input: CourseEventUpdateInput) => Promise<CourseEvent>;
     delete: (id: number) => Promise<void>;
   };
   // Import
   import: {
     importJson: (data: unknown) => Promise<ImportResult>;
-    importHtml: (html: string) => Promise<ImportResult>;
-    importClipboard: (text: string) => Promise<ImportResult>;
-    importXlsx: (buffer: ArrayBuffer) => Promise<ImportResult>;
     importRecognizeText: (text: string) => Promise<ImportResult>;
-    confirmImport: (result: ImportResult) => Promise<void>;
+    /** options.overwrite = true 时覆盖目标学期现有课程/事件/备注后全量导入 */
+    confirmImport: (result: ImportResult, options?: { overwrite?: boolean }) => Promise<void>;
   };
   // Backup
   backup: {
@@ -74,7 +68,6 @@ export interface ElectronAPI {
   // Development only
   dev?: {
     seed: () => Promise<Semester>;
-    clearAll: () => Promise<{ success: boolean }>;
   };
   // Cell Annotations
   cellAnnotation: {
@@ -87,54 +80,86 @@ export interface ElectronAPI {
   notification: {
     show: (options: { title: string; body: string }) => Promise<void>;
   };
+  // School website schedule fetch
+  school: {
+    /** 打开登录窗口：portal = 校内学生入口，webvpn = 校外 WebVPN 门户 */
+    openLoginWindow: (entry?: 'portal' | 'webvpn') => Promise<{ ok: boolean; error?: string }>;
+    loginStatus: () => Promise<SchoolLoginStatus>;
+    refreshLogin: () => Promise<void>;
+    fetchSchedule: () => Promise<SchoolFetchResult>;
+    /** 订阅登录窗口"我已就绪"后的抓取结果推送（主进程 → 渲染进程），返回取消订阅函数 */
+    onFetchResult: (cb: (result: SchoolFetchResult) => void) => () => void;
+    logout: () => Promise<void>;
+    setRememberLogin: (enabled: boolean) => Promise<void>;
+    /** 仅开发模式注册：离线模拟抓取（走同一解析/检测管道） */
+    fetchScheduleMock?: () => Promise<SchoolFetchResult>;
+  };
 }
 
 const api: ElectronAPI = {
+  window: {
+    minimize: () => ipcRenderer.send('window:minimize'),
+    toggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),
+    close: () => ipcRenderer.send('window:close'),
+    onMaximizedChange: (cb) => {
+      const listener = (_e: Electron.IpcRendererEvent, maximized: boolean) => cb(maximized);
+      ipcRenderer.on('window:maximized', listener);
+      return () => {
+        ipcRenderer.removeListener('window:maximized', listener);
+      };
+    },
+  },
   semester: {
     list: () => ipcRenderer.invoke('semester:list'),
     create: (input) => ipcRenderer.invoke('semester:create', input),
-    update: (id, input) => ipcRenderer.invoke('semester:update', id, input),
     delete: (id) => ipcRenderer.invoke('semester:delete', id),
     archive: (id) => ipcRenderer.invoke('semester:archive', id),
     unarchive: (id) => ipcRenderer.invoke('semester:unarchive', id),
+    clearSchedule: (id) => ipcRenderer.invoke('semester:clearSchedule', id),
+    clearAll: () => ipcRenderer.invoke('semester:clearAll'),
   },
   sectionTime: {
     listBySemester: (semesterId) =>
       ipcRenderer.invoke('sectionTime:listBySemester', semesterId),
-    upsertBatch: (semesterId, times) =>
-      ipcRenderer.invoke('sectionTime:upsertBatch', semesterId, times),
   },
   course: {
     listBySemester: (semesterId) =>
       ipcRenderer.invoke('course:listBySemester', semesterId),
-    create: (input) => ipcRenderer.invoke('course:create', input),
-    update: (id, input) => ipcRenderer.invoke('course:update', id, input),
+    update: (id, input) => {
+      if (input === undefined || input === null) {
+        console.error('[preload] course.update 收到空 input, id =', id);
+      }
+      return ipcRenderer.invoke('course:update', id, input);
+    },
     delete: (id) => ipcRenderer.invoke('course:delete', id),
   },
   courseEvent: {
     listBySemester: (semesterId) =>
       ipcRenderer.invoke('courseEvent:listBySemester', semesterId),
-    getById: (id) => ipcRenderer.invoke('courseEvent:getById', id),
-    create: (input) => ipcRenderer.invoke('courseEvent:create', input),
     update: (id, input) => ipcRenderer.invoke('courseEvent:update', id, input),
     delete: (id) => ipcRenderer.invoke('courseEvent:delete', id),
   },
   import: {
     importJson: (data) => ipcRenderer.invoke('import:json', data),
-    importHtml: (html) => ipcRenderer.invoke('import:html', html),
-    importClipboard: (text) => ipcRenderer.invoke('import:clipboard', text),
-    importXlsx: (buffer) => ipcRenderer.invoke('import:xlsx', buffer),
     importRecognizeText: (text) => ipcRenderer.invoke('import:recognizeText', text),
-    confirmImport: (result) => ipcRenderer.invoke('import:confirm', result),
+    // options 为 undefined 时不传参（Electron invoke 绑定 undefined 参数会报
+    // "Wrong API use: tried to bind a value of an unknown type (undefined)"）
+    confirmImport: (result, options) =>
+      options
+        ? ipcRenderer.invoke('import:confirm', result, options)
+        : ipcRenderer.invoke('import:confirm', result),
   },
   backup: {
     exportTo: (semesterId) => ipcRenderer.invoke('backup:exportTo', semesterId),
     autoBackup: () => ipcRenderer.invoke('backup:autoBackup'),
-    importJson: (data) => ipcRenderer.invoke('backup:import', data),
+    // 无参调用（弹文件选择框）时不能传 undefined 参数（同 confirmImport 原因）
+    importJson: (data) =>
+      data !== undefined
+        ? ipcRenderer.invoke('backup:import', data)
+        : ipcRenderer.invoke('backup:import'),
   },
   dev: {
     seed: () => ipcRenderer.invoke('dev:seed'),
-    clearAll: () => ipcRenderer.invoke('dev:clearAll'),
   },
   cellAnnotation: {
     listBySemester: (semesterId) =>
@@ -145,6 +170,22 @@ const api: ElectronAPI = {
   },
   notification: {
     show: (options) => ipcRenderer.invoke('notification:show', options),
+  },
+  school: {
+    openLoginWindow: (entry) => ipcRenderer.invoke('school:openLoginWindow', entry),
+    loginStatus: () => ipcRenderer.invoke('school:loginStatus'),
+    refreshLogin: () => ipcRenderer.invoke('school:refreshLogin'),
+    fetchSchedule: () => ipcRenderer.invoke('school:fetchSchedule'),
+    onFetchResult: (cb) => {
+      const listener = (_e: Electron.IpcRendererEvent, result: SchoolFetchResult) => cb(result);
+      ipcRenderer.on('school:fetch-result', listener);
+      return () => {
+        ipcRenderer.removeListener('school:fetch-result', listener);
+      };
+    },
+    logout: () => ipcRenderer.invoke('school:logout'),
+    setRememberLogin: (enabled) => ipcRenderer.invoke('school:setRememberLogin', enabled),
+    fetchScheduleMock: () => ipcRenderer.invoke('school:fetchScheduleMock'),
   },
 };
 

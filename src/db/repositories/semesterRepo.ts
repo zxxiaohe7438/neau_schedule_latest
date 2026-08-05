@@ -1,5 +1,6 @@
 import type { Semester, SemesterCreateInput, SemesterUpdateInput } from '../../domain/Semester';
 import { queryAll, queryOne, execute } from '../connection';
+import { buildUpdateClause } from '../updateHelper';
 
 export function createSemesterRepo() {
   return {
@@ -20,47 +21,23 @@ export function createSemesterRepo() {
     },
 
     update(id: number, input: SemesterUpdateInput): Semester {
-      const fields: string[] = [];
-      const values: unknown[] = [];
+      const upd = buildUpdateClause(
+        [
+          ['name', input.name],
+          ['start_date', input.start_date],
+          ['weeks_count', input.weeks_count],
+          ['is_archived', input.is_archived === undefined ? undefined : input.is_archived ? 1 : 0],
+        ],
+        ["updated_at = datetime('now')"]
+      );
+      if (!upd) return this.getById(id)!;
 
-      if (input.name !== undefined) {
-        fields.push('name = ?');
-        values.push(input.name);
-      }
-      if (input.start_date !== undefined) {
-        fields.push('start_date = ?');
-        values.push(input.start_date);
-      }
-      if (input.weeks_count !== undefined) {
-        fields.push('weeks_count = ?');
-        values.push(input.weeks_count);
-      }
-      if (input.is_archived !== undefined) {
-        fields.push('is_archived = ?');
-        values.push(input.is_archived ? 1 : 0);
-      }
-
-      if (fields.length === 0) return this.getById(id)!;
-
-      fields.push("updated_at = datetime('now')");
-      values.push(id);
-
-      execute(`UPDATE semesters SET ${fields.join(', ')} WHERE id = ?`, values);
+      execute(`UPDATE semesters SET ${upd.clause} WHERE id = ?`, [...upd.values, id]);
       return this.getById(id)!;
     },
 
     delete(id: number): void {
-      // Explicitly delete related data in correct order
-      // Delete course events first (must be before courses)
-      execute(
-        'DELETE FROM course_events WHERE course_id IN (SELECT id FROM courses WHERE semester_id = ?)',
-        [id]
-      );
-      // Delete courses
-      execute('DELETE FROM courses WHERE semester_id = ?', [id]);
-      // Delete section times
-      execute('DELETE FROM section_times WHERE semester_id = ?', [id]);
-      // Finally delete semester
+      // 依赖 schema 中 4 张子表的 ON DELETE CASCADE 级联清理
       execute('DELETE FROM semesters WHERE id = ?', [id]);
     },
 

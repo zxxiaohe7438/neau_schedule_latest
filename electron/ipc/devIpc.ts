@@ -4,37 +4,30 @@
  */
 
 import { ipcMain } from 'electron';
-import { createSemesterRepo } from '../../src/db/repositories/semesterRepo';
 import { createCourseRepo } from '../../src/db/repositories/courseRepo';
 import { createCourseEventRepo } from '../../src/db/repositories/courseEventRepo';
-import { createSectionTimeRepo } from '../../src/db/repositories/sectionTimeRepo';
 import {
   MOCK_SEMESTER,
   MOCK_COURSES,
-  DEFAULT_SECTION_TIMES,
   generateMockEvents,
 } from '../../src/db/seed';
+import { createSemesterWithDefaultTimes } from './semesterHelper';
 
 export function registerDevIpc(): void {
-  const semesterRepo = createSemesterRepo();
   const courseRepo = createCourseRepo();
   const courseEventRepo = createCourseEventRepo();
-  const sectionTimeRepo = createSectionTimeRepo();
 
   /**
    * Seed the database with mock data for development.
    * Returns the created semester.
    */
   ipcMain.handle('dev:seed', () => {
-    // Create semester
-    const semester = semesterRepo.create({
+    // Create semester with default section times
+    const semester = createSemesterWithDefaultTimes({
       name: MOCK_SEMESTER.name,
       start_date: MOCK_SEMESTER.start_date,
       weeks_count: MOCK_SEMESTER.weeks_count,
     });
-
-    // Create section times
-    sectionTimeRepo.upsertBatch(semester.id, DEFAULT_SECTION_TIMES);
 
     // Create courses
     const courseIds: number[] = [];
@@ -55,18 +48,5 @@ export function registerDevIpc(): void {
     }
 
     return semester;
-  });
-
-  /**
-   * Clear all data from the database.
-   * Use with caution!
-   */
-  ipcMain.handle('dev:clearAll', () => {
-    // Delete in correct order to respect foreign keys
-    const semesters = semesterRepo.list();
-    for (const semester of semesters) {
-      semesterRepo.delete(semester.id);
-    }
-    return { success: true };
   });
 }

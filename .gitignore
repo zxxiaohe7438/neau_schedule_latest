@@ -14,7 +14,14 @@ Thumbs.db
 .claude/settings.local.json
 .zcode/
 
+# 本地 agent 工具文件（与项目无关，不进仓库）
+.agents/
+.claude/skills/
+skills-lock.json
+zcode-skill-profiles/
+
 # Exporter output and snapshots (may contain personal data)
 tools/neau-timetable-exporter/output/*.json
 tools/neau-timetable-exporter/snapshots/*.html
 tools/neau-timetable-exporter/snapshots/*.json
+.ui-shots

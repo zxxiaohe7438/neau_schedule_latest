@@ -24,11 +24,15 @@ export interface UnscheduledCourse {
 export interface ImportCourseItem {
   course_name: string;
   teacher: string;
+  /** 课程编号（官网抓取等来源；非空时导入后写入 course.course_number） */
+  course_number?: string;
   event: CourseEventCreateInput;
   source_hash: string;
   is_duplicate: boolean;
   has_conflict: boolean;
   conflict_resolution?: 'skip' | 'overwrite' | 'keep_local';
+  /** 冲突/重复对应的本地事件 id（检测阶段由 checkDuplicatesAndConflicts 填充，覆盖/保留裁决用） */
+  existing_event_id?: number;
 }
 
 export interface ImportError {

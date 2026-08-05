@@ -4,24 +4,14 @@ import type { CourseEvent } from '../domain/CourseEvent';
 import type { CellAnnotation } from '../domain/CellAnnotation';
 import type { Semester } from '../domain/Semester';
 import type { SectionTime } from '../domain/SectionTime';
-import { computeEventDateTime, formatDateTimeLocal } from '../utils/reminderUtils';
+import { computeEventDateTime } from '../utils/reminderUtils';
 import {
   getCustomRemindersForSource,
   addCustomReminder,
-  removeCustomReminder,
-  type CustomReminder,
   type ReminderSourceType,
 } from '../utils/customReminders';
 import { WEEKDAY_LABELS } from '../utils/dateUtils';
-
-/** 预设提前时间选项 */
-const PRESET_LEAD_OPTIONS = [
-  { label: '10分钟前', minutes: 10 },
-  { label: '30分钟前', minutes: 30 },
-  { label: '1小时前', minutes: 60 },
-  { label: '2小时前', minutes: 120 },
-  { label: '1天前', minutes: 1440 },
-];
+import { ReminderForm } from './ReminderForm';
 
 interface CustomReminderDialogProps {
   sourceType: ReminderSourceType;
@@ -87,81 +77,31 @@ export function CustomReminderDialog({
     return null;
   }, [sourceType, event, course, annotation, semester, currentWeek, sectionTimes]);
 
-  // 时间边界
-  const minDateTime = useMemo(() => {
-    if (!eventInfo) return '';
-    return formatDateTimeLocal(new Date(eventInfo.eventDateTime.getTime() - 2 * 24 * 60 * 60 * 1000));
-  }, [eventInfo]);
+  // 提醒表单上报的待设置时间
+  const [remindAtIso, setRemindAtIso] = useState<string | null>(null);
+  // 已有提醒列表（由表单内添加/删除后刷新）
+  const [listVersion, setListVersion] = useState(0);
 
-  const maxDateTime = useMemo(() => {
-    if (!eventInfo) return '';
-    return formatDateTimeLocal(eventInfo.eventDateTime);
-  }, [eventInfo]);
-
-  // 默认提醒时间 = 事件前30分钟
-  const defaultRemindTime = useMemo(() => {
-    if (!eventInfo) return '';
-    return formatDateTimeLocal(new Date(eventInfo.eventDateTime.getTime() - 30 * 60 * 1000));
-  }, [eventInfo]);
-
-  const [remindAt, setRemindAt] = useState('');
-  const [existingReminders, setExistingReminders] = useState<CustomReminder[]>([]);
-  const [selectedPreset, setSelectedPreset] = useState<number | null>(30);
+  const existingReminders = useMemo(() => {
+    if (!eventInfo) return [];
+    return getCustomRemindersForSource(sourceType, eventInfo.sourceId);
+  }, [eventInfo, sourceType, listVersion]);
 
   // 当 eventInfo 可用时初始化
   useEffect(() => {
-    if (defaultRemindTime) {
-      setRemindAt(defaultRemindTime);
-    }
-  }, [defaultRemindTime]);
-
-  useEffect(() => {
-    if (eventInfo) {
-      setExistingReminders(getCustomRemindersForSource(sourceType, eventInfo.sourceId));
-    }
-  }, [eventInfo, sourceType]);
-
-  // 点击预设按钮
-  const handlePreset = useCallback(
-    (minutes: number) => {
-      if (!eventInfo) return;
-      setSelectedPreset(minutes);
-      const t = new Date(eventInfo.eventDateTime.getTime() - minutes * 60 * 1000);
-      setRemindAt(formatDateTimeLocal(t));
-    },
-    [eventInfo]
-  );
-
-  // 手动修改时间时取消预设选中
-  const handleTimeChange = useCallback((value: string) => {
-    setRemindAt(value);
-    setSelectedPreset(null);
-  }, []);
-
-  const refreshExisting = useCallback(() => {
-    if (eventInfo) {
-      setExistingReminders(getCustomRemindersForSource(sourceType, eventInfo.sourceId));
-    }
-  }, [eventInfo, sourceType]);
+    setListVersion((v) => v + 1);
+  }, [eventInfo]);
 
   const handleAdd = useCallback(() => {
-    if (!remindAt || !eventInfo) return;
+    if (!remindAtIso || !eventInfo) return;
     addCustomReminder({
       source_type: sourceType,
       source_id: eventInfo.sourceId,
-      remind_at: new Date(remindAt).toISOString(),
+      remind_at: remindAtIso,
     });
-    refreshExisting();
+    setListVersion((v) => v + 1);
     onConfirm();
-  }, [remindAt, eventInfo, sourceType, refreshExisting, onConfirm]);
-
-  const handleRemove = useCallback(
-    (reminder: CustomReminder) => {
-      removeCustomReminder(reminder.source_type, reminder.source_id, reminder.remind_at);
-      refreshExisting();
-    },
-    [refreshExisting]
-  );
+  }, [remindAtIso, eventInfo, sourceType, onConfirm]);
 
   if (!eventInfo) return null;
 
@@ -184,69 +124,24 @@ export function CustomReminderDialog({
         </div>
       </div>
 
-      {/* 预设快捷按钮 */}
-      <div style={{ marginBottom: 14 }}>
-        <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text, #1e293b)', marginBottom: 8, display: 'block' }}>
-          快速选择
-        </label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {PRESET_LEAD_OPTIONS.map((opt) => (
-            <button
-              key={opt.minutes}
-              className={`btn btn-sm ${selectedPreset === opt.minutes ? 'btn-primary' : ''}`}
-              style={{ fontSize: 12 }}
-              onClick={() => handlePreset(opt.minutes)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 精确时间选择 */}
-      <div className="custom-reminder-form">
-        <div className="custom-reminder-field">
-          <label>精确时间</label>
-          <input
-            type="datetime-local"
-            value={remindAt}
-            min={minDateTime}
-            max={maxDateTime}
-            onChange={(e) => handleTimeChange(e.target.value)}
-          />
-          <p className="custom-reminder-hint">
-            事件时间: {eventInfo.eventDateTime.toLocaleString('zh-CN')} · 可选前 2 天内
-          </p>
-        </div>
-      </div>
-
-      {/* 已有提醒 */}
-      {existingReminders.length > 0 && (
-        <div className="custom-reminder-existing">
-          <h4>已设置的提醒</h4>
-          {existingReminders.map((r, i) => {
-            const remindDate = new Date(r.remind_at);
-            const diffMs = eventInfo.eventDateTime.getTime() - remindDate.getTime();
-            const diffLabel = formatDiffLabel(diffMs);
-            return (
-              <div key={i} className="custom-reminder-existing-item">
-                <span>
-                  {remindDate.toLocaleString('zh-CN')}
-                  <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #94a3b8)', marginLeft: 6 }}>
-                    ({diffLabel})
-                  </span>
-                </span>
-                <button onClick={() => handleRemove(r)}>删除</button>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* 提醒设置（预设快捷/精确时间/已有提醒列表） */}
+      <ReminderForm
+        eventDateTime={eventInfo.eventDateTime}
+        sourceType={sourceType}
+        sourceId={eventInfo.sourceId}
+        defaultEnabled
+        showToggle={false}
+        onReminderChange={setRemindAtIso}
+        onRemindersChanged={() => setListVersion((v) => v + 1)}
+        renderReminderDetail={(r) =>
+          formatDiffLabel(eventInfo.eventDateTime.getTime() - new Date(r.remind_at).getTime())
+        }
+      />
 
       {/* 操作按钮 */}
       <div className="custom-reminder-actions">
         <button className="btn btn-sm" onClick={onCancel}>取消</button>
-        <button className="btn btn-sm btn-primary" onClick={handleAdd} disabled={!remindAt}>
+        <button className="btn btn-sm btn-primary" onClick={handleAdd} disabled={!remindAtIso}>
           {existingReminders.length > 0 ? '添加更多' : '添加提醒'}
         </button>
       </div>

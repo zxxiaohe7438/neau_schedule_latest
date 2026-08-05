@@ -1,3 +1,5 @@
+import type { WeekPattern } from './CourseEvent';
+
 export interface CellAnnotation {
   id: number;
   semester_id: number;
@@ -5,7 +7,7 @@ export interface CellAnnotation {
   section_no: number;
   start_week: number;
   end_week: number;
-  week_pattern: 'all' | 'odd' | 'even';
+  week_pattern: WeekPattern;
   note: string;
   color: string;
   created_at: string;
@@ -18,7 +20,7 @@ export interface CellAnnotationCreateInput {
   section_no: number;
   start_week: number;
   end_week: number;
-  week_pattern: 'all' | 'odd' | 'even';
+  week_pattern: WeekPattern;
   note: string;
   color?: string;
 }

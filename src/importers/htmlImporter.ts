@@ -5,50 +5,25 @@
 
 import * as cheerio from 'cheerio';
 import type { ImportResult, ImportCourseItem, ImportError } from '../domain/ImportResult';
-import type { WeekPattern } from '../domain/CourseEvent';
-import { computeSourceHash } from './normalizer';
-
-interface ParsedCourse {
-  courseName: string;
-  teacher: string;
-  location: string;
-  weekday: number;
-  startSection: number;
-  endSection: number;
-  startWeek: number;
-  endWeek: number;
-  weekPattern: WeekPattern;
-  rawText: string;
-}
-
-/**
- * Parse section range from text like "1-2节" or "3-4节"
- */
-function parseSectionRange(text: string): { start: number; end: number } | null {
-  const match = text.match(/(\d+)-(\d+)节/);
-  if (match) {
-    return { start: parseInt(match[1], 10), end: parseInt(match[2], 10) };
-  }
-  return null;
-}
-
-/**
- * Parse week range from text like "1-16周" or "1-16周(单)" or "1-16周(双)"
- */
-function parseWeekRange(text: string): { start: number; end: number; pattern: WeekPattern } | null {
-  const match = text.match(/(\d+)-(\d+)周(?:\((单|双)\))?/);
-  if (match) {
-    const pattern: WeekPattern = match[3] === '单' ? 'odd' : match[3] === '双' ? 'even' : 'all';
-    return { start: parseInt(match[1], 10), end: parseInt(match[2], 10), pattern };
-  }
-  return null;
-}
+import { WEEKDAY_MAP } from '../utils/weekday';
+import {
+  parseSectionRange,
+  parseWeekRange,
+  buildImportItem,
+  emptyImportResult,
+  type ParsedCourseData,
+} from './common';
 
 /**
  * Parse a single cell content into course info.
  * Expected format: "课程名\n教师\n地点\n周次"
  */
-function parseCellContent(cellText: string, weekday: number, sectionStart: number, sectionEnd: number): ParsedCourse | null {
+function parseCellContent(
+  cellText: string,
+  weekday: number,
+  sectionStart: number,
+  sectionEnd: number
+): ParsedCourseData | null {
   const lines = cellText.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length < 4) return null;
 
@@ -70,7 +45,6 @@ function parseCellContent(cellText: string, weekday: number, sectionStart: numbe
     startWeek: weekInfo.start,
     endWeek: weekInfo.end,
     weekPattern: weekInfo.pattern,
-    rawText: cellText,
   };
 }
 
@@ -81,6 +55,7 @@ function parseCellContent(cellText: string, weekday: number, sectionStart: numbe
 export function importHtml(html: string, semesterName?: string): ImportResult {
   const errors: ImportError[] = [];
   const courses: ImportCourseItem[] = [];
+  const name = semesterName ?? '';
 
   try {
     const $ = cheerio.load(html);
@@ -93,14 +68,7 @@ export function importHtml(html: string, semesterName?: string): ImportResult {
         message: '未找到表格元素',
         raw_data: html.substring(0, 200),
       });
-      return {
-        semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
-        courses: [],
-        unscheduled_courses: [],
-        errors,
-        conflicts: [],
-        total_count: 0,
-      };
+      return emptyImportResult(errors, [], name);
     }
 
     // Parse header to get weekday mapping
@@ -109,11 +77,7 @@ export function importHtml(html: string, semesterName?: string): ImportResult {
 
     headerCells.each((i, el) => {
       const text = $(el).text().trim();
-      const weekdayNames: Record<string, number> = {
-        '周一': 1, '周二': 2, '周三': 3, '周四': 4,
-        '周五': 5, '周六': 6, '周日': 7,
-      };
-      const weekday = weekdayNames[text];
+      const weekday = WEEKDAY_MAP[text];
       if (weekday) {
         weekdayMap[i] = weekday;
       }
@@ -145,38 +109,7 @@ export function importHtml(html: string, semesterName?: string): ImportResult {
         const parsed = parseCellContent(cellText, weekday, sectionRange.start, sectionRange.end);
 
         if (parsed) {
-          const sourceHash = computeSourceHash(
-            semesterName ?? '',
-            parsed.courseName,
-            parsed.teacher,
-            parsed.location,
-            parsed.weekday,
-            parsed.startSection,
-            parsed.endSection,
-            parsed.startWeek,
-            parsed.endWeek,
-            parsed.weekPattern
-          );
-
-          courses.push({
-            course_name: parsed.courseName,
-            teacher: parsed.teacher,
-            event: {
-              course_id: 0,
-              weekday: parsed.weekday,
-              start_section: parsed.startSection,
-              end_section: parsed.endSection,
-              start_week: parsed.startWeek,
-              end_week: parsed.endWeek,
-              week_pattern: parsed.weekPattern,
-              location: parsed.location,
-              note: '',
-              source_hash: sourceHash,
-            },
-            source_hash: sourceHash,
-            is_duplicate: false,
-            has_conflict: false,
-          });
+          courses.push(buildImportItem(parsed, name));
         }
       });
     });
@@ -189,12 +122,5 @@ export function importHtml(html: string, semesterName?: string): ImportResult {
     });
   }
 
-  return {
-    semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
-    courses,
-    unscheduled_courses: [],
-    errors,
-    conflicts: [],
-    total_count: courses.length,
-  };
+  return emptyImportResult(errors, courses, name);
 }

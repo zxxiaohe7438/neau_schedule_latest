@@ -1,5 +1,5 @@
 import type { ImportResult, ImportCourseItem, ImportError } from '../domain/ImportResult';
-import type { WeekPattern } from '../domain/CourseEvent';
+import { isValidWeekPattern } from '../domain/CourseEvent';
 import { createHash } from 'crypto';
 
 interface RawJsonInput {
@@ -49,12 +49,6 @@ export function computeSourceHash(
 ): string {
   const raw = `${semesterName}|${courseName}|${teacher}|${location}|${weekday}|${startSection}-${endSection}|${startWeek}-${endWeek}|${weekPattern}`;
   return createHash('sha256').update(raw).digest('hex').slice(0, 16);
-}
-
-const VALID_WEEK_PATTERNS: ReadonlySet<string> = new Set(['all', 'odd', 'even']);
-
-function isValidWeekPattern(v: unknown): v is WeekPattern {
-  return typeof v === 'string' && VALID_WEEK_PATTERNS.has(v);
 }
 
 /**

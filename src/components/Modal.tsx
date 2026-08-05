@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { useMouseDownOutside } from '../hooks/useMouseDownOutside';
 
 interface ModalProps {
   isOpen: boolean;
@@ -8,8 +9,7 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const isMouseDownInside = useRef(false);
+  const { handleMouseDown, handleOverlayClick } = useMouseDownOutside('.modal-content', onClose);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -31,24 +31,9 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
   if (!isOpen) return null;
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Check if mousedown is inside the modal content
-    const target = e.target as HTMLElement;
-    const modalContent = overlayRef.current?.querySelector('.modal-content');
-    isMouseDownInside.current = modalContent?.contains(target) ?? false;
-  };
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    // Only close if both mousedown and mouseup were outside the modal content
-    if (e.target === overlayRef.current && !isMouseDownInside.current) {
-      onClose();
-    }
-  };
-
   return (
     <div
       className="modal-overlay"
-      ref={overlayRef}
       onMouseDown={handleMouseDown}
       onClick={handleOverlayClick}
     >

@@ -4,7 +4,7 @@ import { WEEKDAY_LABELS } from '../utils/dateUtils';
 
 interface ImportPreviewProps {
   result: ImportResult;
-  onConfirm: (result: ImportResult) => void;
+  onConfirm: (result: ImportResult, options?: { overwrite?: boolean }) => void;
   onCancel: () => void;
 }
 
@@ -16,6 +16,9 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
   const conflictCourses = courses.filter((c) => c.has_conflict);
   const validCourses = courses.filter((c) => !c.is_duplicate && !c.has_conflict);
   const hasUnscheduled = unscheduled_courses && unscheduled_courses.length > 0;
+
+  // 导入方式：默认覆盖导入（清空目标学期后全量导入）
+  const [overwriteMode, setOverwriteMode] = useState(true);
 
   // Track conflict resolutions
   const [resolutions, setResolutions] = useState<Record<string, 'skip' | 'overwrite' | 'keep_local'>>(
@@ -35,6 +38,15 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
       }
       return c;
     });
+    // 覆盖导入：二次确认（不可逆）
+    if (overwriteMode) {
+      const ok = window.confirm(
+        `将清空「${semester.name || '目标学期'}」现有的全部课程、课时安排与格子备注，\n再导入本次 ${total_count} 条课程安排。\n此操作不可恢复，确定继续吗？`
+      );
+      if (!ok) return;
+      onConfirm(updatedResult, { overwrite: true });
+      return;
+    }
     onConfirm(updatedResult);
   };
 
@@ -58,18 +70,61 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
           </div>
         </div>
 
+        {/* Import Mode */}
+        <div className="preview-section">
+          <h4>导入方式</h4>
+          <div className="import-mode-options">
+            <label className="radio-label">
+              <input
+                type="radio"
+                name="import-mode"
+                checked={overwriteMode}
+                onChange={() => setOverwriteMode(true)}
+              />
+              覆盖导入（推荐）
+            </label>
+            <label className="radio-label">
+              <input
+                type="radio"
+                name="import-mode"
+                checked={!overwriteMode}
+                onChange={() => setOverwriteMode(false)}
+              />
+              合并导入
+            </label>
+          </div>
+          {overwriteMode ? (
+            <p className="import-mode-warning">
+              ⚠ 将清空「{semester.name || '目标学期'}」现有的全部课程、课时安排与格子备注后全量导入（不可恢复）
+            </p>
+          ) : (
+            <p className="text-muted">
+              保留现有数据，重复项自动跳过、冲突项逐个裁决
+            </p>
+          )}
+        </div>
+
         {/* Summary */}
         <div className="preview-section">
           <h4>导入摘要</h4>
           <div className="import-summary">
             <span className="summary-item">总计 {total_count} 条课程安排</span>
-            {validCourses.length > 0 && (
-              <span className="summary-item success">✓ {validCourses.length} 条新增</span>
+            {overwriteMode ? (
+              <span className="summary-item warning">
+                ⚠ 覆盖模式：{validCourses.length} 条将导入
+                {duplicates.length > 0 && `，${duplicates.length} 条原重复项不再跳过`}
+              </span>
+            ) : (
+              <>
+                {validCourses.length > 0 && (
+                  <span className="summary-item success">✓ {validCourses.length} 条新增</span>
+                )}
+                {duplicates.length > 0 && (
+                  <span className="summary-item warning">⚠ {duplicates.length} 条重复（跳过）</span>
+                )}
+              </>
             )}
-            {duplicates.length > 0 && (
-              <span className="summary-item warning">⚠ {duplicates.length} 条重复（跳过）</span>
-            )}
-            {hasConflicts && (
+            {hasConflicts && !overwriteMode && (
               <span className="summary-item error">⚠ {conflicts.length} 条冲突（需处理）</span>
             )}
             {hasErrors && (
@@ -93,8 +148,8 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
           </div>
         )}
 
-        {/* Conflicts */}
-        {hasConflicts && (
+        {/* Conflicts（覆盖模式下无需裁决，全部导入） */}
+        {hasConflicts && !overwriteMode && (
           <div className="preview-section">
             <h4 className="text-warning">冲突处理</h4>
             <p className="text-muted" style={{ marginBottom: 12 }}>
@@ -114,10 +169,10 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
           </div>
         )}
 
-        {/* New Courses */}
-        {validCourses.length > 0 && (
+        {/* Courses to import（覆盖模式下全部导入，含原重复/冲突项） */}
+        {(overwriteMode ? courses : validCourses).length > 0 && (
           <div className="preview-section">
-            <h4>将要导入的课程</h4>
+            <h4>{overwriteMode ? '将要导入的课程（覆盖模式，全部）' : '将要导入的课程'}</h4>
             <table className="preview-table">
               <thead>
                 <tr>
@@ -131,7 +186,7 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
                 </tr>
               </thead>
               <tbody>
-                {validCourses.map((course, i) => (
+                {(overwriteMode ? courses : validCourses).map((course, i) => (
                   <CourseRow key={i} course={course} />
                 ))}
               </tbody>
@@ -139,8 +194,8 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
           </div>
         )}
 
-        {/* Duplicates */}
-        {duplicates.length > 0 && (
+        {/* Duplicates（覆盖模式下不适用） */}
+        {duplicates.length > 0 && !overwriteMode && (
           <div className="preview-section">
             <h4 className="text-muted">重复课程（将跳过）</h4>
             <table className="preview-table">
@@ -197,7 +252,9 @@ export function ImportPreview({ result, onConfirm, onCancel }: ImportPreviewProp
         <button
           className="btn btn-primary"
           onClick={handleConfirm}
-          disabled={hasErrors || (validCourses.length === 0 && !hasConflicts)}
+          disabled={
+            hasErrors || (!overwriteMode && validCourses.length === 0 && !hasConflicts)
+          }
         >
           确认导入
         </button>

@@ -5,8 +5,9 @@
 
 import * as XLSX from 'xlsx';
 import type { ImportResult, ImportCourseItem, ImportError } from '../domain/ImportResult';
-import type { WeekPattern } from '../domain/CourseEvent';
+import { isValidWeekPattern } from '../domain/CourseEvent';
 import { computeSourceHash } from './normalizer';
+import { emptyImportResult } from './common';
 
 interface CsvRow {
   courseName?: string;
@@ -19,12 +20,6 @@ interface CsvRow {
   endWeek?: number;
   weekPattern?: string;
   note?: string;
-}
-
-const VALID_WEEK_PATTERNS: ReadonlySet<string> = new Set(['all', 'odd', 'even']);
-
-function isValidWeekPattern(v: unknown): v is WeekPattern {
-  return typeof v === 'string' && VALID_WEEK_PATTERNS.has(v);
 }
 
 function parseRow(row: CsvRow, index: number, semesterName: string): { item?: ImportCourseItem; error?: ImportError } {
@@ -151,92 +146,61 @@ function parseRow(row: CsvRow, index: number, semesterName: string): { item?: Im
   };
 }
 
-/**
- * Import course data from an Excel or CSV buffer.
- * Supports CSV with columns: courseName, teacher, location, weekday, startSection, endSection, startWeek, endWeek, weekPattern, note
- */
-export function importXlsx(buffer: ArrayBuffer, semesterName?: string): ImportResult {
+/** 逐行解析公共逻辑（importXlsx 与 importCsv 共用） */
+function parseRows(rows: CsvRow[], semesterName: string): ImportResult {
   const errors: ImportError[] = [];
   const courses: ImportCourseItem[] = [];
 
-  try {
-    const workbook = XLSX.read(buffer, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
+  for (let i = 0; i < rows.length; i++) {
+    const result = parseRow(rows[i], i, semesterName);
 
-    // Convert to JSON
-    const rows = XLSX.utils.sheet_to_json<CsvRow>(sheet);
-
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const result = parseRow(row, i, semesterName ?? '');
-
-      if (result.error) {
-        errors.push(result.error);
-      } else if (result.item) {
-        courses.push(result.item);
-      }
+    if (result.error) {
+      errors.push(result.error);
+    } else if (result.item) {
+      courses.push(result.item);
     }
-  } catch (err) {
-    errors.push({
-      index: -1,
-      field: 'file',
-      message: `文件解析失败: ${err instanceof Error ? err.message : '未知错误'}`,
-      raw_data: null,
-    });
   }
 
-  return {
-    semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
-    courses,
-    unscheduled_courses: [],
-    errors,
-    conflicts: [],
-    total_count: courses.length,
-  };
+  return emptyImportResult(errors, courses, semesterName);
+}
+
+/**
+ * Import course data from an Excel buffer.
+ * Supports columns: courseName, teacher, location, weekday, startSection, endSection, startWeek, endWeek, weekPattern, note
+ */
+export function importXlsx(buffer: ArrayBuffer, semesterName?: string): ImportResult {
+  try {
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json<CsvRow>(workbook.Sheets[workbook.SheetNames[0]]);
+    return parseRows(rows, semesterName ?? '');
+  } catch (err) {
+    return emptyImportResult([
+      {
+        index: -1,
+        field: 'file',
+        message: `文件解析失败: ${err instanceof Error ? err.message : '未知错误'}`,
+        raw_data: null,
+      },
+    ]);
+  }
 }
 
 /**
  * Import course data from a CSV string.
  */
 export function importCsv(csvText: string, semesterName?: string): ImportResult {
-  const errors: ImportError[] = [];
-  const courses: ImportCourseItem[] = [];
-
   try {
-    // Parse CSV using xlsx
     const workbook = XLSX.read(csvText, { type: 'string' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-
-    // Convert to JSON
-    const rows = XLSX.utils.sheet_to_json<CsvRow>(sheet);
-
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const result = parseRow(row, i, semesterName ?? '');
-
-      if (result.error) {
-        errors.push(result.error);
-      } else if (result.item) {
-        courses.push(result.item);
-      }
-    }
+    const rows = XLSX.utils.sheet_to_json<CsvRow>(workbook.Sheets[workbook.SheetNames[0]]);
+    return parseRows(rows, semesterName ?? '');
   } catch (err) {
-    errors.push({
-      index: -1,
-      field: 'csv',
-      message: `CSV 解析失败: ${err instanceof Error ? err.message : '未知错误'}`,
-      raw_data: null,
-    });
+    return emptyImportResult([
+      {
+        index: -1,
+        field: 'csv',
+        message: `CSV 解析失败: ${err instanceof Error ? err.message : '未知错误'}`,
+        raw_data: null,
+      },
+    ]);
   }
-
-  return {
-    semester: { name: semesterName ?? '', start_date: '', weeks_count: 18 },
-    courses,
-    unscheduled_courses: [],
-    errors,
-    conflicts: [],
-    total_count: courses.length,
-  };
 }

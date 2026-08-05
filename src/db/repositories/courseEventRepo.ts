@@ -4,6 +4,7 @@ import type {
   CourseEventUpdateInput,
 } from '../../domain/CourseEvent';
 import { queryAll, queryOne, execute } from '../connection';
+import { buildUpdateClause } from '../updateHelper';
 
 export function createCourseEventRepo() {
   return {
@@ -14,13 +15,6 @@ export function createCourseEventRepo() {
          WHERE c.semester_id = ?
          ORDER BY ce.weekday, ce.start_section`,
         [semesterId]
-      );
-    },
-
-    listByCourse(courseId: number): CourseEvent[] {
-      return queryAll<CourseEvent>(
-        'SELECT * FROM course_events WHERE course_id = ? ORDER BY weekday, start_section',
-        [courseId]
       );
     },
 
@@ -50,50 +44,22 @@ export function createCourseEventRepo() {
     },
 
     update(id: number, input: CourseEventUpdateInput): CourseEvent {
-      const fields: string[] = [];
-      const values: unknown[] = [];
+      const upd = buildUpdateClause(
+        [
+          ['weekday', input.weekday],
+          ['start_section', input.start_section],
+          ['end_section', input.end_section],
+          ['start_week', input.start_week],
+          ['end_week', input.end_week],
+          ['week_pattern', input.week_pattern],
+          ['location', input.location],
+          ['note', input.note],
+        ],
+        ["updated_manually = 1", "updated_at = datetime('now')"]
+      );
+      if (!upd) return this.getById(id)!;
 
-      if (input.weekday !== undefined) {
-        fields.push('weekday = ?');
-        values.push(input.weekday);
-      }
-      if (input.start_section !== undefined) {
-        fields.push('start_section = ?');
-        values.push(input.start_section);
-      }
-      if (input.end_section !== undefined) {
-        fields.push('end_section = ?');
-        values.push(input.end_section);
-      }
-      if (input.start_week !== undefined) {
-        fields.push('start_week = ?');
-        values.push(input.start_week);
-      }
-      if (input.end_week !== undefined) {
-        fields.push('end_week = ?');
-        values.push(input.end_week);
-      }
-      if (input.week_pattern !== undefined) {
-        fields.push('week_pattern = ?');
-        values.push(input.week_pattern);
-      }
-      if (input.location !== undefined) {
-        fields.push('location = ?');
-        values.push(input.location);
-      }
-      if (input.note !== undefined) {
-        fields.push('note = ?');
-        values.push(input.note);
-      }
-
-      if (fields.length === 0) return this.getById(id)!;
-
-      // Mark as manually updated
-      fields.push('updated_manually = 1');
-      fields.push("updated_at = datetime('now')");
-      values.push(id);
-
-      execute(`UPDATE course_events SET ${fields.join(', ')} WHERE id = ?`, values);
+      execute(`UPDATE course_events SET ${upd.clause} WHERE id = ?`, [...upd.values, id]);
       return this.getById(id)!;
     },
 
@@ -114,6 +80,38 @@ export function createCourseEventRepo() {
          JOIN courses c ON ce.course_id = c.id
          WHERE ce.source_hash = ? AND c.semester_id = ?`,
         [sourceHash, semesterId]
+      );
+    },
+
+    /**
+     * 按"时间格子"查找同一学期内时间重叠的事件（用于同格冲突检测）。
+     * 节次区间与周次区间均相交即视为重叠；单双周模式在调用方另行判断。
+     */
+    findBySlotAndSemester(
+      semesterId: number,
+      slot: {
+        weekday: number;
+        start_section: number;
+        end_section: number;
+        start_week: number;
+        end_week: number;
+      }
+    ): CourseEvent[] {
+      return queryAll<CourseEvent>(
+        `SELECT ce.* FROM course_events ce
+         JOIN courses c ON ce.course_id = c.id
+         WHERE c.semester_id = ?
+           AND ce.weekday = ?
+           AND ce.start_section <= ? AND ce.end_section >= ?
+           AND ce.start_week <= ? AND ce.end_week >= ?`,
+        [
+          semesterId,
+          slot.weekday,
+          slot.end_section,
+          slot.start_section,
+          slot.end_week,
+          slot.start_week,
+        ]
       );
     },
   };

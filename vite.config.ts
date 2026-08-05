@@ -33,6 +33,14 @@ export default defineConfig({
           },
         },
       },
+      {
+        entry: 'electron/schoolPreload.ts',
+        vite: {
+          build: {
+            outDir: 'dist-electron',
+          },
+        },
+      },
     ]),
     electronRenderer(),
   ],

@@ -8,9 +8,6 @@ import type { Course } from '../domain/Course';
 import type { CourseEvent } from '../domain/CourseEvent';
 import { getCourseColor } from '../utils/courseColor';
 
-// 统一使用 SectionTime.ts 中的默认节次时间（12 节，与学校作息一致）
-export { DEFAULT_SECTION_TIMES } from '../domain/SectionTime';
-
 /** Mock semester for development */
 export const MOCK_SEMESTER: Omit<Semester, 'id' | 'created_at' | 'updated_at'> = {
   name: '2025-2026-2 (开发测试)',

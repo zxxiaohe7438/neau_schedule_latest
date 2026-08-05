@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BellIcon, UserIcon, MapPinIcon, ClockIcon } from './icons';
 
 export interface ToastItem {
   id: string;
@@ -57,7 +58,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: str
     >
       {/* 顶部颜色头 */}
       <div className="reminder-toast-header" style={{ background: `linear-gradient(135deg, ${toast.courseColor}, ${toast.courseColor}cc)` }}>
-        <span className="reminder-toast-bell">🔔</span>
+        <span className="reminder-toast-bell"><BellIcon size={14} /></span>
         <span className="reminder-toast-header-text">即将上课</span>
         <button className="reminder-toast-close" onClick={(e) => { e.stopPropagation(); handleDismiss(); }} title="关闭">✕</button>
       </div>
@@ -68,18 +69,18 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: str
         <div className="reminder-toast-info">
           {toast.teacher && (
             <div className="reminder-toast-info-row">
-              <span className="reminder-toast-info-icon">👤</span>
+              <span className="reminder-toast-info-icon"><UserIcon size={12} /></span>
               <span>{toast.teacher}</span>
             </div>
           )}
           {toast.location && (
             <div className="reminder-toast-info-row">
-              <span className="reminder-toast-info-icon">📍</span>
+              <span className="reminder-toast-info-icon"><MapPinIcon size={12} /></span>
               <span>{toast.location}</span>
             </div>
           )}
           <div className="reminder-toast-info-row">
-            <span className="reminder-toast-info-icon">🕐</span>
+            <span className="reminder-toast-info-icon"><ClockIcon size={12} /></span>
             <span>{timeStr} 开始</span>
           </div>
         </div>

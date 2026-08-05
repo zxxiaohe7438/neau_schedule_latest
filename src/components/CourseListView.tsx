@@ -78,13 +78,22 @@ export function CourseListView({
         <div key={course.id} className="course-group">
           <div className="course-group-header">
             <div className="course-group-title">
-              <span
-                className="course-color-dot"
-                style={{ backgroundColor: course.color }}
-              />
-              <span className="course-group-name">{course.name}</span>
-              {course.teacher && (
-                <span className="course-group-teacher">{course.teacher}</span>
+              <div className="course-group-name-row">
+                <span
+                  className="course-color-dot"
+                  style={{ backgroundColor: course.color }}
+                />
+                <span className="course-group-name">{course.name}</span>
+              </div>
+              {(course.course_number || course.teacher) && (
+                <div className="course-group-meta">
+                  {course.course_number && (
+                    <span className="course-group-number">{course.course_number}</span>
+                  )}
+                  {course.teacher && (
+                    <span className="course-group-teacher">{course.teacher}</span>
+                  )}
+                </div>
               )}
             </div>
             <div className="course-group-actions">
@@ -130,7 +139,7 @@ export function CourseListView({
                     <td>{formatSections(ev)}</td>
                     <td>{ev.location || '-'}</td>
                     <td>{formatWeekPattern(ev)}</td>
-                    <td className="note-cell">{ev.note || '-'}</td>
+                    <td className="note-cell" title={ev.note || undefined}>{ev.note || '-'}</td>
                     <td>
                       <div className="event-actions">
                         {onEditEvent && (
