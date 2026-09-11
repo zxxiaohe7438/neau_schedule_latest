@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "exporter:from-html": "npx tsx tools/neau-timetable-exporter/cli.ts"
+    "exporter:from-html": "npx tsx tools/neau-timetable-exporter/cli.ts",
+    "dist:win": "electron-builder --win"
   },
   "dependencies": {
     "@fontsource/orbitron": "^5.3.0",
@@ -45,6 +46,14 @@
     ],
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "true",
+      "createStartMenuShortcut": "true"
     }
   }
 }
