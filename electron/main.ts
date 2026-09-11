@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
+import log from 'electron-log';
 import { initDatabase, closeDatabase } from '../src/db/connection';
 import { registerSemesterIpc } from './ipc/semesterIpc';
 import { registerSectionTimeIpc } from './ipc/sectionTimeIpc';
@@ -13,10 +14,13 @@ import { registerSchoolIpc } from './ipc/schoolIpc';
 import { registerDevIpc } from './ipc/devIpc';
 import { SchoolSessionService } from './services/schoolSessionService';
 
-// 说明：早期为避免部分 Windows 机器 GPU 进程崩溃曾禁用硬件加速；
-// 但软件渲染下多个 backdrop-filter（液态玻璃）层严重拖慢帧率（用户反馈卡顿），
-// 现恢复 GPU 加速。若在特定机器上出现 GPU 崩溃/花屏，可在此恢复禁用：
-// app.disableHardwareAcceleration();
+// 立即禁用硬件加速以避免在部分 Windows 机器上 GPU 进程导致的启动失败
+app.disableHardwareAcceleration();
+
+// 配置日志文件位置到用户数据目录，便于在没有控制台时定位错误
+log.transports.file.resolvePath = () => path.join(app.getPath('userData'), 'main.log');
+log.info('Main process starting');
+
 if (process.platform === 'win32') {
   app.setAppUserModelId('NEAU.LocalSchedule');
 }
@@ -83,38 +87,44 @@ function registerWindowIpc(): void {
 }
 
 app.whenReady().then(async () => {
-  // Initialize the local database
-  await initDatabase();
+  try {
+    // Initialize the local database
+    await initDatabase();
 
-  // Restore school session (cookies) if any
-  await schoolSession.init();
+    // Restore school session (cookies) if any
+    await schoolSession.init();
 
-  // Window controls for frameless title bar
-  registerWindowIpc();
+    // Window controls for frameless title bar
+    registerWindowIpc();
 
-  // Register all IPC handlers
-  registerSemesterIpc();
-  registerSectionTimeIpc();
-  registerCourseIpc();
-  registerCourseEventIpc();
-  registerImportIpc();
-  registerBackupIpc();
-  registerCellAnnotationIpc();
-  registerNotificationIpc();
-  registerSchoolIpc(schoolSession, () => mainWindow);
+    // Register all IPC handlers
+    registerSemesterIpc();
+    registerSectionTimeIpc();
+    registerCourseIpc();
+    registerCourseEventIpc();
+    registerImportIpc();
+    registerBackupIpc();
+    registerCellAnnotationIpc();
+    registerNotificationIpc();
+    registerSchoolIpc(schoolSession, () => mainWindow);
 
-  // Register dev-only IPC handlers in development mode
-  if (process.env.VITE_DEV_SERVER_URL) {
-    registerDevIpc();
-  }
-
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+    // Register dev-only IPC handlers in development mode
+    if (process.env.VITE_DEV_SERVER_URL) {
+      registerDevIpc();
     }
-  });
+
+    createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  } catch (err) {
+    log.error('Failed to start main process', err instanceof Error ? err.stack : err);
+    // 若初始化失败，延迟退出并保留错误日志以便用户报告
+    setTimeout(() => process.exit(1), 5000);
+  }
 });
 
 app.on('window-all-closed', () => {
