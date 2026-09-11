@@ -52,8 +52,8 @@
       "perMachine": false,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": "true",
-      "createStartMenuShortcut": "true"
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
   }
 }
